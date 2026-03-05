@@ -40,7 +40,6 @@ export function Dashboard({ onNavigate, mode }: any) {
       {/* Quick Actions */}
       <View style={{flexDirection:"row",flexWrap:"wrap",gap:10,marginBottom:12}}>
         {[
-          {id:"blob",emoji:"🫧",label:"Wealth Blob"},
           {id:"simulator",emoji:"⚡",label:"Simulate Event"},
           {id:"manifestation",emoji:"🎯",label:"Goals Board"},
           {id:"wrapped",emoji:"🎁",label:"Quarterly Wrap"},

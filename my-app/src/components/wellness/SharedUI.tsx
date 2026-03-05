@@ -43,7 +43,6 @@ export function Badge({ children, color=C.accent }: any) {
 export function BottomNav({ active, onNavigate }: any) {
   const items = [
     {id:"dashboard",emoji:"🏠",label:"Home"},
-    {id:"blob",emoji:"🫧",label:"Wealth"},
     {id:"manifestation",emoji:"🎯",label:"Goals"},
     {id:"menu",emoji:"☰",label:"Menu"},
   ];
