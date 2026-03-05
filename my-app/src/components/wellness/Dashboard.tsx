@@ -1,6 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react"; // Added useEffect
 import { View, Text, ScrollView, TouchableOpacity, Modal } from "react-native";
-import { C, ASSETS, WEALTH_HISTORY, fmt } from "./constants";
+// Rename the imported ASSETS to FALLBACK_ASSETS so it doesn't clash with our new state variable
+import { C, ASSETS as FALLBACK_ASSETS, WEALTH_HISTORY, fmt } from "./constants"; 
 import { Card, Badge, ProgressBar, styles } from "./SharedUI";
 import { LineChart, DonutChart } from "./Charts";
 import { BlobEcosystem } from "./BlobEcosystem";
@@ -8,7 +9,27 @@ import { AssetDetailSheet } from "./AssetDetailSheet";
 
 export function Dashboard({ onNavigate, mode }: any) {
   const [selAsset, setSelAsset] = useState<any>(null);
-  
+
+  // 1. Setup state for live data (using your constants as a fallback so the UI never loads blank)
+  const [assets, setAssets] = useState(FALLBACK_ASSETS);
+  const [totalWealth, setTotalWealth] = useState(487500);
+
+  // 2. Fetch from the Python backend
+  useEffect(() => {
+    const BACKEND_URL = "http://10.0.2.2:8000/api/portfolio";
+    fetch(BACKEND_URL)
+      .then((res) => res.json())
+      .then((data) => {
+        console.log("✅ SUCCESS! Backend connected. Total:", data.total);
+        // Overwrite the fallback data with the live data from Python
+        setAssets(data.assets);
+        setTotalWealth(data.total);
+      })
+      .catch((err) => {
+        console.error("❌ FETCH FAILED. Check your IP address:", err);
+      });
+  }, []);
+
   return (
     <ScrollView style={{flex:1}} contentContainerStyle={{paddingBottom:100}} showsVerticalScrollIndicator={false}>
       {/* Header */}
@@ -26,7 +47,7 @@ export function Dashboard({ onNavigate, mode }: any) {
       <Card style={{padding:16,marginBottom:12}}>
         <Text style={{fontWeight:"700",fontSize:16,color:C.text,marginBottom:2}}>Your Wealth Ecosystem</Text>
         <Text style={{fontSize:12,color:C.muted,marginBottom:12}}>Watch your assets float · Tap to explore</Text>
-        <BlobEcosystem assets={ASSETS} onBlobTap={setSelAsset}/>
+        <BlobEcosystem assets={assets} onBlobTap={setSelAsset}/>
       </Card>
 
       {/* Total Wealth */}
@@ -71,10 +92,10 @@ export function Dashboard({ onNavigate, mode }: any) {
         <Text style={{fontWeight:"700",fontSize:16,color:C.text,marginBottom:4}}>Asset Breakdown</Text>
         <Text style={{fontSize:12,color:C.muted,marginBottom:14}}>Tap any asset for details</Text>
         <View style={{alignItems:"center",marginBottom:14}}>
-          <DonutChart assets={ASSETS}/>
+          <DonutChart assets={assets}/>
         </View>
         <View style={{flexDirection:"row",flexWrap:"wrap",gap:8}}>
-          {ASSETS.map(a=>(
+          {assets.map(a=>(
             <TouchableOpacity key={a.name} onPress={()=>setSelAsset(a)} activeOpacity={0.75}
               style={{backgroundColor:`${a.color}0e`,borderColor:`${a.color}2e`,borderWidth:1,borderRadius:12,padding:10,flexDirection:"row",alignItems:"center",gap:8,width:"47%"}}>
               <Text style={{fontSize:18}}>{a.emoji}</Text>
