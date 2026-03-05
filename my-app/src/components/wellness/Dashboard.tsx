@@ -62,7 +62,6 @@ export function Dashboard({ onNavigate, mode }: any) {
       <View style={{flexDirection:"row",flexWrap:"wrap",gap:10,marginBottom:12}}>
         {[
           {id:"simulator",emoji:"⚡",label:"Simulate Event"},
-          {id:"manifestation",emoji:"🎯",label:"Goals Board"},
           {id:"wrapped",emoji:"🎁",label:"Quarterly Wrap"},
         ].map(item=>(
           <TouchableOpacity key={item.id} onPress={()=>onNavigate(item.id)} style={styles.quickAction} activeOpacity={0.75}>
@@ -118,11 +117,10 @@ export function Dashboard({ onNavigate, mode }: any) {
       {/* Mini Stats */}
       <View style={{flexDirection:"row",gap:10,marginBottom:12}}>
         {[
-          {id:"wealth-age",emoji:"🕐",label:"Wealth Age",value:"42",sub:"vs Real Age: 35"},
-          {id:"streaks",   emoji:"🔥",label:"Streaks",   value:"12 🔥",sub:"Days saving"},
+          {id:"wealth-age", label:"Wealth Age",value:"42",sub:"vs Real Age: 35"},
+          {id:"streaks",label:"Streaks",value:"12 🔥",sub:"Days saving"},
         ].map(item=>(
           <TouchableOpacity key={item.id} onPress={()=>onNavigate(item.id)} style={[styles.card,{flex:1,marginBottom:0}]} activeOpacity={0.75}>
-            <Text style={{fontSize:22,marginBottom:6}}>{item.emoji}</Text>
             <Text style={{fontWeight:"600",fontSize:12,color:C.muted}}>{item.label}</Text>
             <Text style={{fontSize:26,fontWeight:"900",color:C.text}}>{item.value}</Text>
             <Text style={{fontSize:11,color:C.muted}}>{item.sub}</Text>
