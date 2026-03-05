@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from contextlib import asynccontextmanager
 from apscheduler.schedulers.background import BackgroundScheduler
+
 import plaid
 from plaid.api import plaid_api
 from plaid.model.link_token_create_request import LinkTokenCreateRequest
@@ -12,6 +13,7 @@ from plaid.model.products import Products
 from plaid.model.country_code import CountryCode
 from plaid.model.item_public_token_exchange_request import ItemPublicTokenExchangeRequest
 from plaid.model.accounts_balance_get_request import AccountsBalanceGetRequest
+from plaid.model.sandbox_public_token_create_request import SandboxPublicTokenCreateRequest
 
 from database import engine, get_db, Base
 import models
@@ -81,6 +83,27 @@ async def exchange_public_token(data: dict = Body(...)):
     response = plaid_client.item_public_token_exchange(request)
     HACKATHON_ACCESS_TOKEN = response['access_token']
     return {"success": True}
+
+@app.post("/api/portfolio/plaid/demo-connect")
+async def demo_connect():
+    global HACKATHON_ACCESS_TOKEN
+    try:
+        # 1. Instantly create a fake bank login behind the scenes (First Platypus Bank)
+        pt_request = SandboxPublicTokenCreateRequest(
+            institution_id="ins_109508",
+            initial_products=[Products("transactions"), Products("auth")]
+        )
+        pt_response = plaid_client.sandbox_public_token_create(pt_request)
+        
+        # 2. Exchange it for the permanent access token
+        exc_request = ItemPublicTokenExchangeRequest(public_token=pt_response['public_token'])
+        exc_response = plaid_client.item_public_token_exchange(exc_request)
+        
+        HACKATHON_ACCESS_TOKEN = exc_response['access_token']
+        return {"success": True, "message": "Plaid Sandbox Connected!"}
+    except Exception as e:
+        print("Plaid Demo Error:", e)
+        return {"success": False, "error": str(e)}
 
 @app.get("/api/portfolio")
 async def get_portfolio():

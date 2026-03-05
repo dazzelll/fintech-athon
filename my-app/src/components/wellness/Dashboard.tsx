@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react"; // Added useEffect
-import { View, Text, ScrollView, TouchableOpacity, Modal } from "react-native";
+import { View, Text, ScrollView, TouchableOpacity, Modal, ActivityIndicator } from "react-native";
 // Rename the imported ASSETS to FALLBACK_ASSETS so it doesn't clash with our new state variable
 import { C, ASSETS as FALLBACK_ASSETS, WEALTH_HISTORY, fmt } from "./constants"; 
 import { Card, Badge, ProgressBar, styles } from "./SharedUI";
@@ -10,25 +10,54 @@ import { AssetDetailSheet } from "./AssetDetailSheet";
 export function Dashboard({ onNavigate, mode }: any) {
   const [selAsset, setSelAsset] = useState<any>(null);
 
-  // 1. Setup state for live data (using your constants as a fallback so the UI never loads blank)
+  // Setup state for live data
   const [assets, setAssets] = useState(FALLBACK_ASSETS);
   const [totalWealth, setTotalWealth] = useState(487500);
+  
+  // NEW: Loading state for the demo button
+  const [isConnecting, setIsConnecting] = useState(false);
+  const [isConnected, setIsConnected] = useState(false);
 
-  // 2. Fetch from the Python backend
-  useEffect(() => {
-    const BACKEND_URL = "http://10.0.2.2:8000/api/portfolio";
+  const BACKEND_URL = "http://10.0.2.2:8000/api/portfolio";
+
+  // Reusable function to fetch the latest portfolio data
+  const fetchPortfolio = () => {
     fetch(BACKEND_URL)
       .then((res) => res.json())
       .then((data) => {
-        console.log("✅ SUCCESS! Backend connected. Total:", data.total);
-        // Overwrite the fallback data with the live data from Python
+        console.log("✅ SUCCESS! Live data fetched. Total:", data.total);
         setAssets(data.assets);
         setTotalWealth(data.total);
       })
-      .catch((err) => {
-        console.error("❌ FETCH FAILED. Check your IP address:", err);
-      });
+      .catch((err) => console.error("Fetch failed:", err));
+  };
+
+  // Run once when the app loads
+  useEffect(() => {
+    fetchPortfolio();
   }, []);
+
+  // NEW: The Demo Magic Function to hit the Plaid Sandbox
+  const handleConnectBank = () => {
+    setIsConnecting(true);
+    
+    // Call the magic Python route
+    fetch("http://10.0.2.2:8000/api/portfolio/plaid/demo-connect", { method: "POST" })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          console.log("🏦 Plaid Sandbox Connected!");
+          // It worked! Fetch the new live Plaid data to update the UI
+          fetchPortfolio();
+          setIsConnected(true);
+        }
+        setIsConnecting(false);
+      })
+      .catch(err => {
+        console.error("Plaid Demo Error:", err);
+        setIsConnecting(false);
+      });
+  };
 
   return (
     <ScrollView style={{flex:1}} contentContainerStyle={{paddingBottom:100}} showsVerticalScrollIndicator={false}>
@@ -49,6 +78,37 @@ export function Dashboard({ onNavigate, mode }: any) {
         <Text style={{fontSize:12,color:C.muted,marginBottom:12}}>Watch your assets float · Tap to explore</Text>
         <BlobEcosystem assets={assets} onBlobTap={setSelAsset}/>
       </Card>
+
+      {/* DEMO MAGIC: CONNECT BANK BUTTON */}
+      {!isConnected && (
+        <TouchableOpacity 
+          onPress={handleConnectBank}
+          disabled={isConnecting}
+          style={{ 
+            backgroundColor: isConnecting ? '#374151' : '#111827', 
+            padding: 16, 
+            borderRadius: 16, 
+            marginBottom: 16,
+            flexDirection: 'row',
+            justifyContent: 'center',
+            alignItems: 'center',
+            gap: 10
+          }}
+        >
+          {isConnecting ? (
+            <>
+              <ActivityIndicator color="white" />
+              <Text style={{ color: 'white', fontWeight: '800', fontSize: 16 }}>
+                Syncing securely with Plaid...
+              </Text>
+            </>
+          ) : (
+            <Text style={{ color: 'white', fontWeight: '800', fontSize: 16 }}>
+              🏦 Connect Bank Account
+            </Text>
+          )}
+        </TouchableOpacity>
+      )}
 
       {/* Total Wealth */}
       <View style={[styles.gradientCard,{marginBottom:12}]}>
