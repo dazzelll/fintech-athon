@@ -129,10 +129,8 @@ export function ManifestationBoard({ onBack }: any) {
   
   return (
     <ScrollView contentContainerStyle={{paddingBottom:100}}>
-      <BackBtn onBack={onBack} title="Goals Board" subtitle="Manifest your financial dreams"/>
-      <View style={[styles.gradientCard,{backgroundColor:"#7c3aed",marginBottom:12}]}>
-        <Text style={{fontSize:28,marginBottom:8}}>✨</Text>
-        <Text style={{fontWeight:"800",fontSize:18,color:"white"}}>Manifestation Board</Text>
+      <View style={[styles.gradientCard,{backgroundColor:"#7c3aed",marginBottom:12,marginTop:30}]}>
+        <Text style={{fontWeight:"800",fontSize:20,color:"white"}}>Manifestation Board</Text>
         <Text style={{fontSize:13,color:"rgba(255,255,255,0.75)",marginTop:4}}>{goals.length} active goals</Text>
       </View>
       {goals.map(g=>{
