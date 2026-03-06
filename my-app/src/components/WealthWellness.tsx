@@ -11,6 +11,7 @@ import {
 export default function WealthWellness() {
   const [view, setView] = useState("dashboard");
   const [mode, setMode] = useState("growth");
+  const [riskLevel, setRiskLevel] = useState(5)
   
   const nav = (v: string) => setView(v);
   const back = () => setView("dashboard");
@@ -24,7 +25,7 @@ export default function WealthWellness() {
     "wealth-age": <WealthAge onBack={back} />,
     streaks: <Streaks onBack={back} />,
     challenges: <Challenges onBack={back} />,
-    "villain-arc": <VillainArc onBack={back} />,
+    "villain-arc": <VillainArc onBack={back} riskLevel={riskLevel} />,
     menu: <Menu mode={mode} onModeToggle={() => setMode((m: string) => m === "growth" ? "frugal" : "growth")} onNavigate={nav} />,
   };
 

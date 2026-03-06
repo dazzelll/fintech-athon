@@ -8,7 +8,6 @@ import {
   ActivityIndicator,
   Linking,
 } from "react-native";
-// Rename the imported ASSETS to FALLBACK_ASSETS so it doesn't clash with our live state variable
 import { C, ASSETS as FALLBACK_ASSETS, WEALTH_HISTORY, fmt } from "./constants";
 import { Card, Badge, ProgressBar, styles, CryptoLiveTicker } from "./SharedUI";
 import { LineChart, DonutChart } from "./Charts";
@@ -16,106 +15,100 @@ import { BlobEcosystem } from "./BlobEcosystem";
 import { AssetDetailSheet } from "./AssetDetailSheet";
 import { Gift, Zap } from "lucide-react-native";
 
+const BASE_URL = "http://10.0.2.2:8000/api";
+
 export function Dashboard({ onNavigate, mode }: any) {
   const [selAsset, setSelAsset] = useState<any>(null);
 
-  // Setup state for live data
   const [assets, setAssets] = useState(FALLBACK_ASSETS);
   const [totalWealth, setTotalWealth] = useState(487500);
+  const [health, setHealth] = useState<any>(null);
 
-  // Setup separated loading states for the demo
   const [isConnectingBank, setIsConnectingBank] = useState(false);
   const [isConnectingStripe, setIsConnectingStripe] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
 
-  // State to hold the active Villain Arc alert
   const [villainAlert, setVillainAlert] = useState<any>(null);
-
-  const BACKEND_URL = "http://10.0.2.2:8000/api/portfolio";
 
   // Reusable function to fetch the latest portfolio data
   const fetchPortfolio = () => {
-    fetch(BACKEND_URL)
+    fetch(`${BASE_URL}/portfolio`)
       .then((res) => res.json())
       .then((data) => {
-        console.log("✅ SUCCESS! Live data fetched. Total:", data.total);
+        console.log("✅ Live data fetched. Total:", data.total);
         setAssets(data.assets);
         setTotalWealth(data.total);
+        if (data.health) setHealth(data.health);
       })
-      .catch((err) => console.error("Fetch failed:", err));
+      .catch((err) => console.error("Portfolio fetch failed:", err));
   };
 
-  // Fetch the Villain Arc data
-  const fetchVillainData = () => {
-    fetch("http://10.0.2.2:8000/api/villain")
+  // FIX 1: Correct route is /api/villain/roast (not /api/villain)
+  // FIX 2: Must be POST with a JSON body so riskLevel reaches the backend
+  const fetchVillainData = (riskLevel: number = 5) => {
+    fetch(`${BASE_URL}/villain/roast`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ riskLevel }),
+    })
       .then((res) => res.json())
       .then((data) => {
+        console.log("🦹 Villain data:", data);
         if (data.alerts && data.alerts.length > 0) {
           setVillainAlert(data.alerts[0]);
+        } else {
+          setVillainAlert(null);
         }
       })
-      .catch((err) => console.error("Villain Fetch Error:", err));
+      .catch((err) => console.error("Villain fetch error:", err));
   };
 
   // THE STEALTH TRIGGER: Ruins data for the demo pitch
   const handleSecretSabotage = () => {
-    fetch("http://10.0.2.2:8000/api/demo/sabotage", { method: "POST" })
+    fetch(`${BASE_URL}/demo/sabotage`, { method: "POST" })
       .then(() => {
-        // Fetch the newly ruined numbers!
         setIsConnected(true);
         fetchPortfolio();
-        // Fetch the AI roast!
-        fetchVillainData();
+        fetchVillainData(5);
       })
-      .catch((err) => console.error(err));
+      .catch((err) => console.error("Sabotage error:", err));
   };
 
-  // Run once when the app loads (Basic static data)
+  // Run once on mount
   useEffect(() => {
     fetchPortfolio();
   }, []);
 
-  // ACT 1: Pure Data Sync (Connect Bank)
+  // ACT 1: Connect Bank
   const handleConnectBank = () => {
     setIsConnectingBank(true);
-
-    // Simulate a secure 2-second connection handshake
     setTimeout(() => {
       setIsConnected(true);
       setIsConnectingBank(false);
-
-      // 1. Fetch the live numbers
       fetchPortfolio();
-
-      // 2. Ask the backend if these new numbers trigger any warnings
-      fetchVillainData();
+      fetchVillainData(5);
     }, 2000);
   };
 
-  // ACT 3: The Stripe Top-Up Redemption Flow
+  // ACT 3: Stripe Top-Up Redemption Flow
   const handleTopUp = async () => {
     setIsConnectingStripe(true);
-
     try {
-      // 1. Generate Stripe Checkout URL
-      const res = await fetch(
-        "http://10.0.2.2:8000/api/portfolio/stripe/top-up",
-        { method: "POST" }
-      );
+      const res = await fetch(`${BASE_URL}/portfolio/stripe/top-up`, {
+        method: "POST",
+      });
       const data = await res.json();
 
       if (data.success && data.url) {
         console.log("💳 Opening Stripe Checkout...");
-        // 2. Open phone browser
         Linking.openURL(data.url);
 
-        // 3. Wait 5 seconds, then confirm payment to update numbers
         setTimeout(async () => {
-          await fetch("http://10.0.2.2:8000/api/portfolio/stripe/confirm", {
+          await fetch(`${BASE_URL}/portfolio/stripe/confirm`, {
             method: "POST",
           });
           fetchPortfolio();
-          setVillainAlert(null); // Clear the warning card because they fixed it!
+          setVillainAlert(null); // Clear warning — they fixed it!
           setIsConnectingStripe(false);
         }, 5000);
       } else {
@@ -126,6 +119,13 @@ export function Dashboard({ onNavigate, mode }: any) {
       setIsConnectingStripe(false);
     }
   };
+
+  // Pull live wellness scores if available, else fall back to static values
+  const wellnessMetrics: [string, number, string][] = [
+    ["Diversification", health?.diversification ?? 78, C.accent],
+    ["Liquidity", health?.liquidity ?? 65, "#10b981"],
+    ["Behavioral Resilience", health?.behavioral_resilience ?? 82, "#8b5cf6"],
+  ];
 
   return (
     <ScrollView
@@ -143,7 +143,7 @@ export function Dashboard({ onNavigate, mode }: any) {
         }}
       >
         <View>
-          {/* Secret invisible button for the demo! */}
+          {/* Secret invisible long-press button for the demo */}
           <TouchableOpacity
             activeOpacity={1}
             onLongPress={handleSecretSabotage}
@@ -215,7 +215,7 @@ export function Dashboard({ onNavigate, mode }: any) {
           )}
         </TouchableOpacity>
       ) : (
-        // ACT 2 & 3: After Connecting (Show Villain Alert if it exists)
+        // ACT 2 & 3: After Connecting — show Villain Alert if active
         villainAlert && (
           <View
             style={{
@@ -358,7 +358,7 @@ export function Dashboard({ onNavigate, mode }: any) {
         })}
       </View>
 
-      {/* Wellness */}
+      {/* Wellness — now driven by live health scores from backend */}
       <Card style={{ marginBottom: 12 }}>
         <Text
           style={{
@@ -373,13 +373,7 @@ export function Dashboard({ onNavigate, mode }: any) {
         <Text style={{ fontSize: 12, color: C.muted, marginBottom: 16 }}>
           Key health indicators
         </Text>
-        {(
-          [
-            ["Diversification", 78, C.accent],
-            ["Liquidity", 65, "#10b981"],
-            ["Behavioral Resilience", 82, "#8b5cf6"],
-          ] as any[]
-        ).map(([label, val, color]) => (
+        {wellnessMetrics.map(([label, val, color]) => (
           <View key={label} style={{ marginBottom: 14 }}>
             <View
               style={{
@@ -471,12 +465,7 @@ export function Dashboard({ onNavigate, mode }: any) {
       {/* Mini Stats */}
       <View style={{ flexDirection: "row", gap: 10, marginBottom: 12 }}>
         {[
-          {
-            id: "streaks",
-            label: "Streaks",
-            value: "12 🔥",
-            sub: "Days saving",
-          },
+          { id: "streaks", label: "Streaks", value: "12 🔥", sub: "Days saving" },
         ].map((item) => (
           <TouchableOpacity
             key={item.id}

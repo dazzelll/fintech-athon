@@ -455,13 +455,15 @@ export function ManifestationBoard({ onBack }: any) {
         },
         body: JSON.stringify({
           // THE FIX: Translate the number into the string the backend expects!
-          mode: riskLevel > 5 ? "growth" : "frugal", 
+          riskLevel: riskLevel,
           goalsSummary: goalsSummary
         })
       });
   
       const data = await res.json();
       
+      console.log("📦 PACKAGE RECEIVED FROM PYTHON:", data);
+
       if (data.success) {
         setProphecy(data.prophecyText);
       } else {
@@ -1589,32 +1591,60 @@ export function Challenges({ onBack }: any) {
 
 
 // ─── VILLAIN ARC ──────────────────────────────────────────────────────────────
-export function VillainArc({ onBack }: any) {
+export function VillainArc({ onBack, riskLevel }: any) {
   const [note, setNote]             = useState("");
   const [alerts, setAlerts]         = useState<any[]>([]);
   const [roast, setRoast]           = useState<string | null>(null);
+  const [advice, setAdvice]         = useState<string | null>(null);
   const [loading, setLoading]       = useState(false);
   const [caughtIn4K, setCaughtIn4K] = useState<string[]>([]);
 
   const BACKEND = "http://10.0.2.2:8000";
 
-  useEffect(() => {
-    fetch(`${BACKEND}/api/villain`)
-      .then(res => res.json())
-      .then(data => {
-        setAlerts(data.alerts ?? []);
-        setCaughtIn4K(data.caughtIn4K ?? []);
-        if (data.alerts?.length > 0) setRoast(data.alerts[0].message);
-      })
-      .catch(err => console.error("Villain fetch error:", err));
-  }, []);
+  // Shared helper — used by both useEffect and the manual button
+  // FIX 1: riskLevel goes in the JSON body, not as a query param
+  // FIX 2: populate BOTH alerts (for the banner) and roast (for the advisor card)
+  const fetchVillainData = async (level: number = riskLevel ?? 5) => {
+    try {
+      const res = await fetch(`${BACKEND}/api/villain/roast`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ riskLevel: level }),
+      });
+      const data = await res.json();
+      console.log("📦 FULL API RESPONSE:", JSON.stringify(data, null, 2));
 
+      if (data.alerts && data.alerts.length > 0) {
+        setAlerts(data.alerts);
+        // Banner gets the problem statement
+        setRoast(data.alerts[0].message);
+        // Advisor card gets the action steps (separate field from backend)
+        setAdvice(data.alerts[0].steps ?? null);
+      } else {
+        setAlerts([]);
+        setRoast(null);
+        setAdvice(null);
+      }
+
+      if (data.caughtIn4K && data.caughtIn4K.length > 0) {
+        setCaughtIn4K(data.caughtIn4K);
+      }
+    } catch (err) {
+      console.error("Villain fetch error:", err);
+    }
+  };
+
+  // Load on mount / whenever riskLevel changes
+  useEffect(() => {
+    fetchVillainData(riskLevel);
+  }, [riskLevel]);
+
+  // Manual "Get Portfolio Check" button
+  // FIX 4: was reading data.roast which doesn't exist — now uses shared helper
   const generateRoast = async () => {
     setLoading(true);
     try {
-      const res  = await fetch(`${BACKEND}/api/villain/roast`, { method: "POST" });
-      const data = await res.json();
-      setRoast(data.roast);
+      await fetchVillainData(riskLevel);
     } catch {
       setRoast("portfolio check is offline rn, try again later");
     }
@@ -1675,19 +1705,32 @@ export function VillainArc({ onBack }: any) {
           <Text style={{ fontWeight:"800", fontSize:15, color:"#6d28d9" }}>Portfolio Advisor</Text>
         </View>
         <Text style={{ fontSize:12, color:C.muted, marginBottom:12 }}>
-          Get a reality check on your portfolio
+          {alerts.length > 0 ? "Here's how to fix your villain arc 👇" : "Get a reality check on your portfolio"}
         </Text>
 
-        {roast && (
+        {advice ? (
+          <View style={{
+            backgroundColor:"#6d28d911", borderRadius:12,
+            padding:14, marginBottom:12,
+          }}>
+            <Text style={{ fontSize:12, color:"#6d28d9", fontWeight:"700", marginBottom:6, textTransform:"uppercase" }}>
+              Action Plan
+            </Text>
+            <Text style={{ fontSize:13, color:C.text, lineHeight:20 }}>
+              {advice}
+            </Text>
+          </View>
+        ) : roast ? (
+          // Fallback: no separate steps field yet, show roast as advice
           <View style={{
             backgroundColor:"#6d28d911", borderRadius:12,
             padding:14, marginBottom:12,
           }}>
             <Text style={{ fontSize:13, color:C.text, lineHeight:20 }}>
-              "{roast}"
+              {roast}
             </Text>
           </View>
-        )}
+        ) : null}
 
         <TouchableOpacity
           onPress={generateRoast}

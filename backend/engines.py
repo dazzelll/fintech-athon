@@ -1,8 +1,10 @@
 import math
 import os
 from dotenv import load_dotenv
-
+import httpx
+import json
 import google.generativeai as genai
+import traceback
 
 # Load environment variables
 load_dotenv()
@@ -56,50 +58,115 @@ def calculate_wealth_age(total_wealth, real_age, health_score):
     return max(18, wealth_age + health_bonus)
 
 # --- AI SERVICE ---
-async def generate_gemini_prophecy(mode: str, goals_summary: str):
+
+async def extract_simulation_parameters(scenario_text: str):
+    """Uses Gemini to turn a human sentence into strict math variables."""
+    try:
+        model = genai.GenerativeModel('gemini-2.5-flash', generation_config={"response_mime_type": "application/json"})
+        
+        prompt = f"""
+        You are a financial data parser. Read the user's scenario and extract the parameters into JSON.
+        Assume a default timeframe of 5 years and a default monthly contribution of $500 if not specified.
+
+        User Scenario: "{scenario_text}"
+
+        Return ONLY a JSON object with these exact keys:
+        - "years_to_simulate" (int): How many years to project. Default 5.
+        - "monthly_contribution" (int): How much they save per month. Default 500.
+        - "one_time_expense" (int): Any big purchase mentioned (e.g., car, vacation). Default 0.
+        - "expense_year" (int): Which year the expense happens. Default 1.
+        - "income_pause_months" (int): How many months they are out of a job or not saving. Default 0.
+        """
+        response = await model.generate_content_async(prompt)
+        return json.loads(response.text)
+        
+    except Exception as e:
+        print("Gemini Extraction Error:", e)
+        return {
+            "years_to_simulate": 5, "monthly_contribution": 500,
+            "one_time_expense": 0, "expense_year": 1, "income_pause_months": 0
+        }
+
+async def generate_prophecy_text(data):
+    """Simulator Prophecy - Supportive and Strategic"""
+    try:
+        model = genai.GenerativeModel('gemini-2.5-flash')
+        prompt = f"""You are a brilliant, supportive Gen-Z financial strategist for an app called Wealth Wellness Hub.
+        The user just ran a simulation to test a financial decision.
+        
+        Data: Projected wealth after this scenario: ${data['projectedWealth']}. 
+        The scenario they simulated: "{data.get('scenario', 'Normal growth')}"
+        
+        Rules:
+        - DO NOT roast them. This is a safe space to test ideas.
+        - Give them 1 piece of actionable advice or a smart alternative/pivot based on their scenario.
+        - Sound like a highly intelligent Gen Z bestie. Use positive slang (e.g., 'main character energy', 'level up', 'secure the bag').
+        - Max 3 sentences. No bullet points.
+        """
+        
+        response = await model.generate_content_async(prompt)
+        return response.text.strip()
+    except Exception as e:
+        print("Gemini API Error:", e)
+        return "Testing your options is a massive W. Keep tweaking the variables until you secure the bag."
+    
+async def generate_gemini_prophecy(risk_level: int, goals_summary: str):
     """Manifestation Board Prophecy via Official GenAI SDK"""
     try:
         model = genai.GenerativeModel('gemini-2.5-flash')
         
-        prompt = f"""You are a mystical professional financial adviser who speaks in dramatic, fun prophecy style — like a mix of a fortune cookie, a hype friend, and a financial advisor. Use "the stars", "the algorithm has spoken" type language. Be specific with numbersZ.
+        prompt = f"""You are a mystical professional financial adviser who speaks in fun prophecy style — like a mix of a fortune cookie, a hype friend, and a financial advisor. Use "the stars", "the algorithm has spoken" type language. Be specific with numbers.
         
-The user is in {'GROWTH mode (maximize returns)' if mode == 'growth' else 'FRUGAL mode (minimize spending)'}.
+The user's risk tolerance is currently set to {risk_level} out of 10 (1 = extremely safe/frugal, 10 = highly aggressive/growth-focused).
 
 Their goals: {goals_summary}
 
-Give a short mystical prophecy (3-4 sentences) about their financial future. End with "The oracle commands:" and one specific action."""
+Give a short mystical prophecy (3-4 sentences) about their financial future based on this specific risk appetite. End with "The oracle commands:" and one specific, actionable piece of advice perfectly tailored to a risk level of {risk_level}."""
 
-        # Use the official SDK instead of raw HTTP requests!
-        response = await model.generate_content_async(prompt)
+        # Running synchronously to avoid the Windows async loop bug
+        response = model.generate_content(prompt)
+        
         return response.text.strip()
         
     except Exception as e:
-        print(f"Gemini SDK Error: {e}")
-        return "The oracle is temporarily disconnected from the cosmos. Try again later."
+        print("--- GEMINI CRASH REPORT ---")
+        traceback.print_exc()
+        print("---------------------------")
+        return f"The oracle is temporarily disconnected. Error: {str(e)}"
     
-async def generate_villain_roast(assets_data):
+async def generate_villain_roast(assets_data, risk_level: int):
+    """
+    Returns a tuple: (message, steps)
+    - message: 1-sentence problem diagnosis shown in the alert banner
+    - steps: 2-3 concrete action steps shown in the Portfolio Advisor card
+    """
     try:
-        model = genai.GenerativeModel('gemini-2.5-flash')
+        model = genai.GenerativeModel(
+            'gemini-2.5-flash',
+            generation_config={"response_mime_type": "application/json"}
+        )
         
         prompt = f"""You are a professional financial advisor who is slightly snarky but genuinely helpful.
 Here is the user's current portfolio data: {assets_data}
+Their chosen risk tolerance is {risk_level} out of 10 (1 = extremely safe, 10 = highly aggressive).
 
-Write a 1-sentence observation about their portfolio's biggest weakness.
-Rules:
-- Keep it strictly under 15 words.
-- Use lowercase letters only.
-- Slightly snarky but not mean — like a friend who happens to be a financial advisor.
-- No hashtags.
-- Keep money values as money values.
-- Be specific to their actual numbers.
-- Give one clear, actionable recommendation.
+The portfolio has two critical problems: savings are dangerously low and crypto is overweight.
+
+Return ONLY a JSON object with exactly these two keys:
+
+"message": A single sentence (max 20 words, lowercase only) diagnosing the biggest problem with their portfolio. Be specific to their actual numbers. Slightly snarky but friendly — like a bestie who happens to be a financial advisor. No hashtags.
+
+"steps": 2-3 concrete action steps they should take RIGHT NOW to fix this portfolio, tailored to their {risk_level}/10 risk level. Write as a short paragraph (not a list). Sound like an intelligent Gen Z financial advisor. Reference their actual numbers. Be specific — e.g. "move $X from crypto into savings" not vague advice. Max 4 sentences.
 """
         
-        # Using async generation to keep the server fast
-        response = await model.generate_content_async(prompt)
-        return response.text.strip()
+        response = model.generate_content(prompt)
+        result = json.loads(response.text)
+        message = result.get("message", "your portfolio needs urgent attention bestie.")
+        steps = result.get("steps", "Start by rebalancing — move funds from crypto into savings to hit at least 15% liquidity.")
+        return message, steps
         
     except Exception as e:
         print("Gemini API Error:", e)
-        return "your savings are depleted and crypto is wilding bestie. we need to fix this."
-    
+        fallback_message = "your savings are depleted and crypto is wilding bestie. we need to fix this."
+        fallback_steps = "Move at least $20,000 from crypto into your savings account now to restore liquidity. Then set a monthly auto-transfer of $500 into savings until you hit 15% of your total portfolio."
+        return fallback_message, fallback_steps
