@@ -59,9 +59,9 @@ def calculate_wealth_age(total_wealth, real_age, health_score):
 async def generate_gemini_prophecy(mode: str, goals_summary: str):
     """Manifestation Board Prophecy via Official GenAI SDK"""
     try:
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        model = genai.GenerativeModel('gemini-2.5-flash')
         
-        prompt = f"""You are a mystical financial oracle who speaks in dramatic, fun prophecy style — like a mix of a fortune cookie, a hype friend, and a financial advisor. Use "bestie", "the stars", "the algorithm has spoken" type language. Be specific with numbers but deliver it mystically.
+        prompt = f"""You are a mystical professional financial adviser who speaks in dramatic, fun prophecy style — like a mix of a fortune cookie, a hype friend, and a financial advisor. Use "the stars", "the algorithm has spoken" type language. Be specific with numbersZ.
         
 The user is in {'GROWTH mode (maximize returns)' if mode == 'growth' else 'FRUGAL mode (minimize spending)'}.
 
@@ -79,20 +79,21 @@ Give a short mystical prophecy (3-4 sentences) about their financial future. End
     
 async def generate_villain_roast(assets_data):
     try:
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        model = genai.GenerativeModel('gemini-2.5-flash')
         
-        prompt = f"""
-        You are a savage, Gen-Z financial advisor AI. 
-        The user just ruined their portfolio. 
-        Here is their current data: {assets_data}
-        
-        Write a 1-sentence warning telling them their savings are too low and their crypto is too high. 
-        Rules:
-        - Keep it strictly under 15 words.
-        - Use lowercase letters only.
-        - Use Gen-Z slang (e.g., bestie, cooked, wilding, caught in 4k).
-        - Do not use hashtags.
-        """
+        prompt = f"""You are a professional financial advisor who is slightly snarky but genuinely helpful.
+Here is the user's current portfolio data: {assets_data}
+
+Write a 1-sentence observation about their portfolio's biggest weakness.
+Rules:
+- Keep it strictly under 15 words.
+- Use lowercase letters only.
+- Slightly snarky but not mean — like a friend who happens to be a financial advisor.
+- No hashtags.
+- Keep money values as money values.
+- Be specific to their actual numbers.
+- Give one clear, actionable recommendation.
+"""
         
         # Using async generation to keep the server fast
         response = await model.generate_content_async(prompt)
@@ -101,3 +102,4 @@ async def generate_villain_roast(assets_data):
     except Exception as e:
         print("Gemini API Error:", e)
         return "your savings are depleted and crypto is wilding bestie. we need to fix this."
+    
