@@ -28,13 +28,22 @@ export default function WealthWellness() {
     menu: <Menu mode={mode} onModeToggle={() => setMode((m: string) => m === "growth" ? "frugal" : "growth")} onNavigate={nav} />,
   };
 
-  return (
-    <SafeAreaView style={{flex:1, backgroundColor: C.bg}}>
-      <StatusBar barStyle="dark-content" backgroundColor={C.bg} />
-      <View style={{flex:1, paddingHorizontal: 16, paddingTop: 12}}>
-        {screens[view] || screens.dashboard}
-      </View>
-      <BottomNav active={view} onNavigate={nav} />
-    </SafeAreaView>
-  );
+// In WealthWellness.tsx, change the render logic:
+return (
+  <SafeAreaView style={{ flex: 1, backgroundColor: C.bg }}>
+    <StatusBar barStyle="dark-content" backgroundColor={C.bg} />
+    
+    {view === "wrapped" ? (
+      // Full screen — no padding, no nav
+      <QuarterlyWrapped onBack={back} />
+    ) : (
+      <>
+        <View style={{ flex: 1, paddingHorizontal: 16, paddingTop: 12 }}>
+          {screens[view] || screens.dashboard}
+        </View>
+        <BottomNav active={view} onNavigate={nav} />
+      </>
+    )}
+  </SafeAreaView>
+);
 }

@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { C } from './constants';
+import { Home, Target, Settings, ChevronLeft } from 'lucide-react-native';
 
 export function Card({ children, style={}, onPress }: any) {
   return (
@@ -22,7 +23,7 @@ export function BackBtn({ onBack, title, subtitle }: any) {
   return (
     <View style={{flexDirection:"row",alignItems:"center",gap:12,marginBottom:20}}>
       <TouchableOpacity onPress={onBack} style={styles.backButton}>
-        <Text style={{color:C.text,fontSize:24,lineHeight:28}}>‹</Text>
+        <ChevronLeft size={22} color={C.text} />
       </TouchableOpacity>
       <View>
         <Text style={{fontWeight:"800",fontSize:22,color:C.text}}>{title}</Text>
@@ -42,19 +43,28 @@ export function Badge({ children, color=C.accent }: any) {
 
 export function BottomNav({ active, onNavigate }: any) {
   const items = [
-    {id:"dashboard",emoji:"🏠",label:"Home"},
-    {id:"manifestation",emoji:"🎯",label:"Goals"},
-    {id:"menu",emoji:"☰",label:"Menu"},
+    { id: "dashboard",     icon: Home,     label: "Home"  },
+    { id: "manifestation", icon: Target,   label: "Goals" },
+    { id: "menu",          icon: Settings, label: "Settings"  },
   ];
+
   return (
     <View style={styles.bottomNav}>
       {items.map(item => {
         const isActive = active === item.id;
+        const Icon = item.icon;
         return (
-          <TouchableOpacity key={item.id} onPress={()=>onNavigate(item.id)} style={styles.navItem} activeOpacity={0.7}>
-            <Text style={{fontSize:20}}>{item.emoji}</Text>
-            <Text style={{fontSize:10,fontWeight:isActive?"700":"400",color:isActive?C.accent:C.muted}}>{item.label}</Text>
-            {isActive&&<View style={{width:4,height:4,borderRadius:2,backgroundColor:C.accent}}/>}
+          <TouchableOpacity
+            key={item.id}
+            onPress={() => onNavigate(item.id)}
+            style={styles.navItem}
+            activeOpacity={0.7}
+          >
+            <Icon size={20} color={isActive ? C.accent : C.muted} />
+            <Text style={{ fontSize: 10, fontWeight: isActive ? "700" : "400", color: isActive ? C.accent : C.muted }}>
+              {item.label}
+            </Text>
+            {isActive && <View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: C.accent }} />}
           </TouchableOpacity>
         );
       })}

@@ -3,6 +3,7 @@ import { View, Text, ScrollView, TouchableOpacity, TextInput } from 'react-nativ
 import { C, ASSETS, fmt, pctC } from './constants';
 import { Card, Badge, ProgressBar, BackBtn, styles } from './SharedUI';
 import { BlobEcosystem } from './BlobEcosystem';
+import { Sparkle } from 'lucide-react-native';
 
 // ─── WEALTH BLOB ──────────────────────────────────────────────────────────────
 export function WealthBlob({ onBack }: any) {
@@ -63,7 +64,7 @@ export function EventSimulator({ onBack }: any) {
     setRes({nw,pct,rec:recs[sel],pos:ev.impact>0});
   };
   return (
-    <ScrollView contentContainerStyle={{paddingBottom:100}}>
+    <ScrollView contentContainerStyle={{paddingBottom:100, paddingTop:30}}>
       <BackBtn onBack={onBack} title="Event Simulator" subtitle="Model financial scenarios"/>
       <Card style={{marginBottom:12}}>
         <Text style={{fontWeight:"700",fontSize:16,color:C.text,marginBottom:14}}>Select Event</Text>
@@ -184,42 +185,98 @@ export function ManifestationBoard({ onBack }: any) {
 
 // ─── QUARTERLY WRAPPED ────────────────────────────────────────────────────────
 export function QuarterlyWrapped({ onBack }: any) {
-  const [slide,setSlide]=useState(0);
-  const slides=[
-    {bg:"#4f46e5",emoji:"🎉",title:"Q1 2026 Wrapped",sub:"Your wealth journey this quarter"},
-    {bg:"#065f46",emoji:"📈",title:"+12.5%",sub:"Portfolio growth this quarter",stat:"$53,750 gained"},
-    {bg:"#1e3a8a",emoji:"🏆",title:"Top Move",sub:"Stocks led your portfolio",stat:"+18.4% annual"},
-    {bg:"#7c3aed",emoji:"🎯",title:"3 Goals Active",sub:"On track for all of them",stat:"Keep going!"},
+  const [slide, setSlide] = useState(0);
+
+  const slides = [
+    { bg: "#4f46e5", emoji: "🎉", title: "Q1 2026 Wrapped", sub: "Your wealth journey this quarter" },
+    { bg: "#065f46", emoji: "📈", title: "+12.5%",          sub: "Portfolio growth this quarter", stat: "$53,750 gained" },
+    { bg: "#1e3a8a", emoji: "🏆", title: "Top Move",        sub: "Stocks led your portfolio",     stat: "+18.4% annual" },
+    { bg: "#7c3aed", emoji: "🎯", title: "3 Goals Active",  sub: "On track for all of them",      stat: "Keep going!" },
+    { bg: "wealth-age" }, // wealth age slide
   ];
-  const s=slides[slide];
+
+  const s = slides[slide];
+  const isWealthAge = (s as any).bg === "wealth-age";
+
   return (
-    <ScrollView contentContainerStyle={{paddingBottom:100}}>
-      <BackBtn onBack={onBack} title="Quarterly Wrapped" subtitle="Q1 2026 highlights"/>
-      <View style={{backgroundColor:s.bg,borderRadius:24,padding:48,alignItems:"center",marginBottom:12}}>
-        <Text style={{fontSize:56,marginBottom:16}}>{s.emoji}</Text>
-        <Text style={{fontSize:36,fontWeight:"900",color:"white",letterSpacing:-1,marginBottom:8,textAlign:"center"}}>{s.title}</Text>
-        <Text style={{fontSize:16,color:"rgba(255,255,255,0.8)",marginBottom:(s as any).stat?16:0,textAlign:"center"}}>{s.sub}</Text>
-        {(s as any).stat&&<View style={{backgroundColor:"rgba(255,255,255,0.18)",borderRadius:99,paddingVertical:8,paddingHorizontal:20}}>
-          <Text style={{fontSize:16,fontWeight:"700",color:"white"}}>{(s as any).stat}</Text>
-        </View>}
+    <View style={{ flex: 1, backgroundColor: isWealthAge ? "#1e3a8a" : (s as any).bg }}>
+
+      {/* Close button */}
+      <TouchableOpacity
+        onPress={onBack}
+        style={{ position: "absolute", top: 52, right: 20, zIndex: 10, width: 36, height: 36, borderRadius: 18, backgroundColor: "rgba(255,255,255,0.2)", alignItems: "center", justifyContent: "center" }}
+      >
+        <Text style={{ color: "white", fontSize: 18, fontWeight: "600" }}>✕</Text>
+      </TouchableOpacity>
+
+      {/* Slide content */}
+      <View style={{ flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 32 }}>
+        {isWealthAge ? (
+          // ── Wealth Age slide ──
+          <View style={{ alignItems: "center", width: "100%" }}>
+            <Text style={{ fontSize: 80, fontWeight: "900", color: "white", letterSpacing: -4 }}>42</Text>
+            <Text style={{ fontSize: 20, color: "rgba(255,255,255,0.75)", marginBottom: 8 }}>Your Wealth Age</Text>
+            <View style={{ marginVertical: 20, height: 1, backgroundColor: "rgba(255,255,255,0.2)", width: "80%" }} />
+            <Text style={{ fontSize: 16, color: "rgba(255,255,255,0.7)", marginBottom: 32 }}>
+              Real Age: <Text style={{ color: "white", fontWeight: "700" }}>35</Text> · 7 years ahead 🚀
+            </Text>
+            {([
+              ["🏦", "Exceptional savings rate",        "Saving at a rate typical of someone aged 42"],
+              ["📈", "Investment returns ahead of curve","Portfolio beats most peers your age"],
+              ["🛡️", "Strong risk management",          "Behavioral maturity shows in your decisions"],
+            ] as any[]).map(([e, t, sub], i) => (
+              <View key={i} style={{ flexDirection: "row", gap: 14, marginBottom: 18, width: "100%" }}>
+                <Text style={{ fontSize: 26 }}>{e}</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 15, fontWeight: "700", color: "white" }}>{t}</Text>
+                  <Text style={{ fontSize: 13, color: "rgba(255,255,255,0.65)" }}>{sub}</Text>
+                </View>
+              </View>
+            ))}
+          </View>
+        ) : (
+          // ── Regular slides ──
+          <View style={{ alignItems: "center" }}>
+            <Text style={{ fontSize: 72, marginBottom: 24 }}>{(s as any).emoji}</Text>
+            <Text style={{ fontSize: 42, fontWeight: "900", color: "white", letterSpacing: -1, marginBottom: 12, textAlign: "center" }}>{(s as any).title}</Text>
+            <Text style={{ fontSize: 18, color: "rgba(255,255,255,0.8)", marginBottom: (s as any).stat ? 24 : 0, textAlign: "center" }}>{(s as any).sub}</Text>
+            {(s as any).stat && (
+              <View style={{ backgroundColor: "rgba(255,255,255,0.18)", borderRadius: 99, paddingVertical: 10, paddingHorizontal: 24 }}>
+                <Text style={{ fontSize: 18, fontWeight: "700", color: "white" }}>{(s as any).stat}</Text>
+              </View>
+            )}
+          </View>
+        )}
       </View>
-      <View style={{flexDirection:"row",gap:8,justifyContent:"center",marginBottom:14}}>
-        {slides.map((_,i)=>(
-          <TouchableOpacity key={i} onPress={()=>setSlide(i)}
-            style={{width:i===slide?24:8,height:8,borderRadius:99,backgroundColor:i===slide?C.accent:"rgba(0,0,0,0.15)"}}/>
+
+      {/* Dot indicators */}
+      <View style={{ flexDirection: "row", gap: 8, justifyContent: "center", marginBottom: 20 }}>
+        {slides.map((_, i) => (
+          <TouchableOpacity key={i} onPress={() => setSlide(i)}
+            style={{ width: i === slide ? 24 : 8, height: 8, borderRadius: 99, backgroundColor: i === slide ? "white" : "rgba(255,255,255,0.35)" }}
+          />
         ))}
       </View>
-      <View style={{flexDirection:"row",gap:8}}>
-        <TouchableOpacity onPress={()=>setSlide(Math.max(0,slide-1))} disabled={slide===0}
-          style={[styles.navButton,{opacity:slide===0?0.4:1}]}>
-          <Text style={{color:C.text,fontSize:14,fontWeight:"600"}}>← Prev</Text>
+
+      {/* Prev / Next */}
+      <View style={{ flexDirection: "row", gap: 10, paddingHorizontal: 20, paddingBottom: 48 }}>
+        <TouchableOpacity
+          onPress={() => setSlide(Math.max(0, slide - 1))}
+          disabled={slide === 0}
+          style={{ flex: 1, padding: 14, borderRadius: 14, backgroundColor: "rgba(255,255,255,0.15)", alignItems: "center", opacity: slide === 0 ? 0.4 : 1 }}
+        >
+          <Text style={{ color: "white", fontSize: 15, fontWeight: "600" }}>← Prev</Text>
         </TouchableOpacity>
-        <TouchableOpacity onPress={()=>setSlide(Math.min(slides.length-1,slide+1))} disabled={slide===slides.length-1}
-          style={[styles.navButton,{flex:1,backgroundColor:slide===slides.length-1?"rgba(0,0,0,0.05)":C.accent}]}>
-          <Text style={{color:slide===slides.length-1?C.muted:"white",fontSize:14,fontWeight:"600"}}>Next →</Text>
+        <TouchableOpacity
+          onPress={() => slide === slides.length - 1 ? onBack() : setSlide(slide + 1)}
+          style={{ flex: 2, padding: 14, borderRadius: 14, backgroundColor: "rgba(255,255,255,0.25)", alignItems: "center" }}
+        >
+          <Text style={{ color: "white", fontSize: 15, fontWeight: "700" }}>
+            {slide === slides.length - 1 ? "Finish ✓" : "Next →"}
+          </Text>
         </TouchableOpacity>
       </View>
-    </ScrollView>
+    </View>
   );
 }
 
@@ -403,16 +460,24 @@ export function VillainArc({ onBack }: any) {
 // ─── MENU ─────────────────────────────────────────────────────────────────────
 export function Menu({ mode, onModeToggle, onNavigate }: any) {
   const items=[
-    {id:"wealth-age",emoji:"🕐",label:"Wealth Age"},
-    {id:"streaks",emoji:"🔥",label:"Streaks"},
     {id:"challenges",emoji:"🏆",label:"Challenges"},
     {id:"villain-arc",emoji:"😈",label:"Villain Arc"},
-    {id:"wrapped",emoji:"🎁",label:"Quarterly Wrapped"},
   ];
   return (
-    <ScrollView contentContainerStyle={{paddingBottom:100}}>
-      <Text style={{fontWeight:"800",fontSize:24,color:C.text,marginBottom:4}}>Menu</Text>
-      <Text style={{fontSize:13,color:C.muted,marginBottom:20}}>Settings & features</Text>
+    <ScrollView contentContainerStyle={{paddingBottom:100,paddingTop:50}}>
+      <Text style={{fontWeight:"800",fontSize:24,color:C.text,marginBottom:10}}>Settings</Text>
+      <Card>
+        <Text style={{fontWeight:"700",fontSize:12,color:C.muted,marginBottom:12,textTransform:"uppercase",letterSpacing:0.8}}>Account</Text>
+        <View style={{flexDirection:"row",alignItems:"center",gap:14}}>
+          <View style={{width:48,height:48,borderRadius:24,backgroundColor:"#3b82f6",alignItems:"center",justifyContent:"center"}}>
+            <Text style={{fontSize:20}}>👤</Text>
+          </View>
+          <View>
+            <Text style={{fontWeight:"700",fontSize:15,color:C.text}}>Alex Chen</Text>
+            <Text style={{fontSize:12,color:C.muted}}>alex@example.com</Text>
+          </View>
+        </View>
+      </Card>
       <Card style={{marginBottom:12}}>
         <Text style={{fontWeight:"700",fontSize:12,color:C.muted,marginBottom:12,textTransform:"uppercase",letterSpacing:0.8}}>Mode</Text>
         <View style={{flexDirection:"row",alignItems:"center",justifyContent:"space-between"}}>
@@ -435,18 +500,6 @@ export function Menu({ mode, onModeToggle, onNavigate }: any) {
             <Text style={{color:C.muted,fontSize:18}}>›</Text>
           </TouchableOpacity>
         ))}
-      </Card>
-      <Card>
-        <Text style={{fontWeight:"700",fontSize:12,color:C.muted,marginBottom:12,textTransform:"uppercase",letterSpacing:0.8}}>Account</Text>
-        <View style={{flexDirection:"row",alignItems:"center",gap:14}}>
-          <View style={{width:48,height:48,borderRadius:24,backgroundColor:"#3b82f6",alignItems:"center",justifyContent:"center"}}>
-            <Text style={{fontSize:20}}>👤</Text>
-          </View>
-          <View>
-            <Text style={{fontWeight:"700",fontSize:15,color:C.text}}>Alex Chen</Text>
-            <Text style={{fontSize:12,color:C.muted}}>alex@example.com</Text>
-          </View>
-        </View>
       </Card>
     </ScrollView>
   );
