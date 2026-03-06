@@ -1,6 +1,7 @@
 import math
 import os
 from dotenv import load_dotenv
+import httpx
 
 import google.generativeai as genai
 
@@ -56,23 +57,35 @@ def calculate_wealth_age(total_wealth, real_age, health_score):
     return max(18, wealth_age + health_bonus)
 
 # --- AI SERVICE ---
-async def generate_prophecy_text(data):
-    try:
-        # Use flash for high-speed hackathon responses
-        model = genai.GenerativeModel('gemini-1.5-flash')
-        
-        prompt = f"""You are the financial oracle of a Gen Z wealth app called Wealth Wellness Hub.
-        Write a SHORT prophecy (2-3 sentences MAX) about this user's financial future.
-        Data: Projected wealth: ${data['projectedWealth']}, Freedom year: {data['freedomYear']}, Health score: {data['healthScore']}/100.
-        Rules: Sound like a mystical oracle meets a Gen Z bestie. Max 3 sentences. No bullet points."""
-        
-        # Use the async generation method to prevent blocking the backend
-        response = await model.generate_content_async(prompt)
-        return response.text.strip()
-        
-    except Exception as e:
-        print("Gemini API Error:", e)
-        return "The algorithm has spoken ✨ You are on your way to main character energy."
+async def generate_gemini_prophecy(mode: str, goals_summary: str):
+    """Calls the Gemini 2.5 Flash API to generate a mystical financial prophecy."""
+    api_key = os.getenv("GEMINI_API_KEY")
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
+    
+    prompt = f"""You are a mystical financial oracle who speaks in dramatic, fun prophecy style — like a mix of a fortune cookie, a hype friend, and a financial advisor. Use "bestie", "the stars", "the algorithm has spoken" type language. Be specific with numbers but deliver it mystically.
+    
+The user is in {'GROWTH mode (maximize returns)' if mode == 'growth' else 'FRUGAL mode (minimize spending)'}.
+
+Their goals: {goals_summary}
+
+Give a short mystical prophecy (3-4 sentences) about their financial future. End with "The oracle commands:" and one specific action."""
+
+    payload = {
+        "contents": [{"parts": [{"text": prompt}]}]
+    }
+
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await client.post(url, json=payload, headers={"Content-Type": "application/json"})
+            data = response.json()
+            
+            if "error" in data:
+                return f"The stars are clouded... {data['error'].get('message', 'API Error')}"
+                
+            return data["candidates"][0]["content"]["parts"][0]["text"]
+        except Exception as e:
+            print(f"Gemini Error: {e}")
+            return "The oracle is temporarily disconnected from the cosmos. Try again later."
     
 async def generate_villain_roast(assets_data):
     try:

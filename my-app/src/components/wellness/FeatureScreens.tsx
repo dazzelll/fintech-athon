@@ -408,11 +408,7 @@ export function ManifestationBoard({ onBack, mode = "growth" }: any) {
         `${g.emoji} ${g.title}: $${g.current.toLocaleString()} of $${g.target.toLocaleString()} by ${g.deadline}`
       ).join(", ");
   
-      // IMPORTANT: Update this URL based on how you are running Expo!
-      // - If using iOS Simulator: "http://127.0.0.1:8000/api/manifestation/prophecy"
-      // - If using Android Emulator: "http://10.0.2.2:8000/api/manifestation/prophecy"
-      // - If using a physical phone on Wi-Fi: "http://YOUR_COMPUTER_IP:8000/api/manifestation/prophecy"
-      const BACKEND_URL = "http://127.0.0.1:8000/api/manifestation/prophecy";
+      const BACKEND_URL = "http://10.0.2.2:8000/api/manifestation/prophecy";
   
       const res = await fetch(BACKEND_URL, {
         method: "POST",

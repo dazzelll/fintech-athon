@@ -12,7 +12,8 @@ import google.generativeai as genai
 
 from database import engine, get_db, Base
 import models
-from engines import calculate_health_score, calculate_wealth_age, generate_prophecy_text, generate_villain_roast
+from pydantic import BaseModel
+from engines import calculate_health_score, calculate_wealth_age, generate_gemini_prophecy, generate_villain_roast
 
 # 1. Create DB Tables
 models.Base.metadata.create_all(bind=engine)
@@ -152,7 +153,7 @@ async def simulator_run(data: dict = Body(...)):
     projected = round(wealth * (1.08 ** years) + (monthly * 12 * years))
     
     # Trigger OpenAI GenZ Prophecy
-    prophecy = await generate_prophecy_text({
+    prophecy = await generate_gemini_prophecy({
         "projectedWealth": projected,
         "freedomYear": 2026 + years + 5,
         "healthScore": 85
@@ -185,3 +186,12 @@ async def get_villain_data():
         "caughtIn4K": ["you've ordered food delivery 23 times this month. we see you bestie 👀"],
         "history": []
     }
+
+class ProphecyRequest(BaseModel):
+    mode: str
+    goalsSummary: str
+@app.post("/api/manifestation/prophecy")
+async def get_manifestation_prophecy(req: ProphecyRequest):
+    """Endpoint for the Manifestation Board to get a Gemini prophecy"""
+    prophecy = await generate_gemini_prophecy(req.mode, req.goalsSummary)
+    return {"success": True, "prophecyText": prophecy}
