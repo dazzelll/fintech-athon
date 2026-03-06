@@ -3,6 +3,133 @@ import { View, Text, TouchableOpacity, StyleSheet, Platform, ActivityIndicator }
 import { C } from './constants';
 import { Home, Target, Settings, ChevronLeft, Trophy, Skull } from 'lucide-react-native';
 
+
+export function StockLiveTicker() {
+  const [prices, setPrices] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [lastUpdated, setLastUpdated] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function fetchPrices() {
+      try {
+        // Android emulator -> local backend
+        const res = await fetch("http://10.0.2.2:8000/api/stocks/live-prices");
+        const json = await res.json();
+
+        if (json.success) {
+          setPrices(json.data);
+          const now = new Date();
+          setLastUpdated(
+            `${now.getHours()}:${String(now.getMinutes()).padStart(2, "0")}`
+          );
+        }
+      } catch (err) {
+        console.error("Failed to connect to stock backend:", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchPrices();
+    const interval = setInterval(fetchPrices, 60000); // refresh every 60s
+    return () => clearInterval(interval);
+  }, []);
+
+  if (loading && prices.length === 0) {
+    return (
+      <View
+        style={{
+          padding: 20,
+          backgroundColor: "#1e293b",
+          borderRadius: 16,
+          alignItems: "center",
+          marginBottom: 12,
+        }}
+      >
+        <ActivityIndicator size="small" color="#22c55e" />
+      </View>
+    );
+  }
+
+  return (
+    <View
+      style={{
+        backgroundColor: "#1e293b",
+        padding: 16,
+        borderRadius: 16,
+        marginBottom: 12,
+      }}
+    >
+      <View
+        style={{
+          flexDirection: "row",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: 12,
+        }}
+      >
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+          <View
+            style={{
+              width: 8,
+              height: 8,
+              borderRadius: 4,
+              backgroundColor: "#22c55e",
+            }}
+          />
+          <Text style={{ color: "white", fontWeight: "800", fontSize: 14 }}>
+            Live Stock Market
+          </Text>
+        </View>
+        <Text
+          style={{ color: "rgba(255,255,255,0.3)", fontSize: 9 }}
+        >{`updated ${lastUpdated ?? "--:--"}`}</Text>
+      </View>
+
+      <View style={{ flexDirection: "row", gap: 8 }}>
+        {prices.map((stock) => (
+          <View
+            key={stock.symbol}
+            style={{
+              flex: 1,
+              backgroundColor: "rgba(255,255,255,0.05)",
+              padding: 10,
+              borderRadius: 12,
+            }}
+          >
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 4,
+                marginBottom: 4,
+              }}
+            >
+              <Text style={{ color: stock.color, fontSize: 14 }}>
+                {stock.icon}
+              </Text>
+              <Text
+                style={{
+                  color: "rgba(255,255,255,0.7)",
+                  fontSize: 11,
+                  fontWeight: "700",
+                }}
+              >
+                {stock.symbol}
+              </Text>
+            </View>
+            <Text
+              style={{ color: "white", fontSize: 13, fontWeight: "800" }}
+            >
+              ${stock.price.toFixed(2)}
+            </Text>
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+}
+
 export function CryptoLiveTicker() {
   const [prices, setPrices] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);

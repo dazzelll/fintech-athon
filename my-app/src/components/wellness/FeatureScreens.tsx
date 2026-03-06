@@ -10,7 +10,8 @@ import {
 import { C, ASSETS, fmt, pctC } from "./constants";
 import { Card, Badge, ProgressBar, BackBtn, styles } from "./SharedUI";
 import { BlobEcosystem } from "./BlobEcosystem";
-import { LinearGradient } from "expo-linear-gradient";
+import {HandCoins, Lightbulb, PiggyBank, PiggyBankIcon} from 'lucide-react-native'
+import { Icon } from "expo-router";
 
 // ─── WEALTH BLOB ──────────────────────────────────────────────────────────────
 export function WealthBlob({ onBack }: any) {
@@ -1658,8 +1659,25 @@ export function VillainArc({ onBack, riskLevel }: any) {
   ];
 
   return (
-    <ScrollView contentContainerStyle={{ paddingBottom: 100 }}>
-      <BackBtn onBack={onBack} title="Villain Arc" subtitle="Reflect on financial missteps" />
+    <ScrollView contentContainerStyle={{ paddingBottom: 100, paddingTop: 30 }}>
+            {/* ── Stats Banner ── */}
+            <View style={{ backgroundColor:"#6d28d9", borderRadius:20, padding:20, marginBottom:12 }}>
+        <View style={{ flexDirection:"row", alignItems:"center", gap:10, marginBottom:12 }}>
+          <Text style={{ fontWeight:"800", fontSize:20, color:"white" }}>Financial Reflections</Text>
+        </View>
+        <View style={{ flexDirection:"row", gap:24 }}>
+          <View>
+            <Text style={{ fontSize:36, fontWeight:"900", color:"white" }}>{refs.length}</Text>
+            <Text style={{ fontSize:12, color:"rgba(255,255,255,0.7)" }}>Reflections</Text>
+          </View>
+          <View>
+            <Text style={{ fontSize:36, fontWeight:"900", color:"white" }}>
+              {refs.filter(r => r.emotion === "learning").length}
+            </Text>
+            <Text style={{ fontSize:12, color:"rgba(255,255,255,0.7)" }}>Learning Moments</Text>
+          </View>
+        </View>
+      </View>
 
       {/* ── AI Alert Banner (only shows if sabotage active) ── */}
       {alerts.length > 0 && (
@@ -1701,8 +1719,8 @@ export function VillainArc({ onBack, riskLevel }: any) {
       {/* ── Portfolio Advisor ── */}
       <Card style={{ marginBottom:12 }}>
         <View style={{ flexDirection:"row", alignItems:"center", gap:8, marginBottom:8 }}>
-          <Text style={{ fontSize:20 }}>💡</Text>
-          <Text style={{ fontWeight:"800", fontSize:15, color:"#6d28d9" }}>Portfolio Advisor</Text>
+        <Lightbulb size={18} color="#6d28d9" strokeWidth={2.5} />
+        <Text style={{fontWeight:"800", fontSize:15, color:"#6d28d9" }}>Portfolio Advisor</Text>
         </View>
         <Text style={{ fontSize:12, color:C.muted, marginBottom:12 }}>
           {alerts.length > 0 ? "Here's how to fix your villain arc 👇" : "Get a reality check on your portfolio"}
@@ -1738,30 +1756,10 @@ export function VillainArc({ onBack, riskLevel }: any) {
           style={{ backgroundColor:"#6d28d9", borderRadius:12, padding:13, alignItems:"center" }}
         >
           <Text style={{ color:"white", fontWeight:"700", fontSize:14 }}>
-            {loading ? "analyzing..." : "💡 Get Portfolio Check"}
+            {loading ? "Analyzing..." : "Get Portfolio Check"}
           </Text>
         </TouchableOpacity>
       </Card>
-
-      {/* ── Stats Banner ── */}
-      <View style={{ backgroundColor:"#6d28d9", borderRadius:20, padding:20, marginBottom:12 }}>
-        <View style={{ flexDirection:"row", alignItems:"center", gap:10, marginBottom:12 }}>
-          <Text style={{ fontSize:24 }}>⚠️</Text>
-          <Text style={{ fontWeight:"800", fontSize:18, color:"white" }}>Financial Reflections</Text>
-        </View>
-        <View style={{ flexDirection:"row", gap:24 }}>
-          <View>
-            <Text style={{ fontSize:36, fontWeight:"900", color:"white" }}>{refs.length}</Text>
-            <Text style={{ fontSize:12, color:"rgba(255,255,255,0.7)" }}>Reflections</Text>
-          </View>
-          <View>
-            <Text style={{ fontSize:36, fontWeight:"900", color:"white" }}>
-              {refs.filter(r => r.emotion === "learning").length}
-            </Text>
-            <Text style={{ fontSize:12, color:"rgba(255,255,255,0.7)" }}>Learning Moments</Text>
-          </View>
-        </View>
-      </View>
 
       {/* ── Reflection Cards ── */}
       {refs.map(r => (
@@ -1810,10 +1808,7 @@ export function VillainArc({ onBack, riskLevel }: any) {
 
 // ─── MENU ─────────────────────────────────────────────────────────────────────
 export function Menu({ mode, onModeToggle, onNavigate }: any) {
-  const items = [
-    { id: "challenges", emoji: "🏆", label: "Challenges" },
-    { id: "villain-arc", emoji: "😈", label: "Villain Arc" },
-  ];
+
   return (
     <ScrollView contentContainerStyle={{ paddingBottom: 100, paddingTop: 30 }}>
       <Text

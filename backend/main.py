@@ -51,6 +51,21 @@ MOCK_ASSETS = [
     {"name": "Bonds", "value": 32500, "pct": 7, "color": "#ec4899", "emoji": "📜"}
 ]
 
+ALPHAVANTAGE_API_KEY = os.getenv("ALPHAVANTAGE_API_KEY")
+STOCK_FALLBACK_DATA = [
+    {"name": "Apple", "symbol": "AAPL", "price": 190.25, "color": "#22c55e"},
+    {"name": "Microsoft", "symbol": "MSFT", "price": 420.40, "color": "#3b82f6"},
+    {"name": "Tesla", "symbol": "TSLA", "price": 220.10, "color": "#ef4444"},
+]
+
+COINGECKO_API_KEY = os.getenv("COINGECKO_API_KEY")
+
+FALLBACK_DATA = [
+    {"name": "Bitcoin", "symbol": "BTC", "price": 85430.50, "color": "#f59e0b", "icon": "₿"},
+    {"name": "Ethereum", "symbol": "ETH", "price": 4200.75, "color": "#627eea", "icon": "⟠"},
+    {"name": "Solana", "symbol": "SOL", "price": 185.20, "color": "#14f195", "icon": "◎"},
+]
+
 
 # --- ROUTES ---
 
@@ -269,14 +284,6 @@ async def get_villain_roast():
     roast = await generate_villain_roast(assets)
     return {"success": True, "roast": roast}
 
-COINGECKO_API_KEY = os.getenv("COINGECKO_API_KEY")
-
-FALLBACK_DATA = [
-    {"name": "Bitcoin", "symbol": "BTC", "price": 85430.50, "color": "#f59e0b", "icon": "₿"},
-    {"name": "Ethereum", "symbol": "ETH", "price": 4200.75, "color": "#627eea", "icon": "⟠"},
-    {"name": "Solana", "symbol": "SOL", "price": 185.20, "color": "#14f195", "icon": "◎"},
-]
-
 @app.get("/api/crypto/live-prices")
 async def get_live_crypto_prices():
     url = "https://api.coingecko.com/api/v3/simple/price"
@@ -338,3 +345,55 @@ async def get_live_crypto_prices():
         except Exception as e:
             print("API Fetch Error (CoinGecko) EXCEPTION:", repr(e))
             return {"success": True, "data": FALLBACK_DATA}
+
+@app.get("/api/stocks/live-prices")
+async def get_live_stock_prices():
+    if not ALPHAVANTAGE_API_KEY:
+        print("ALPHAVANTAGE_API_KEY not set, using fallback stock data")
+        return {"success": True, "data": STOCK_FALLBACK_DATA}
+
+    base_url = "https://www.alphavantage.co/query"
+    symbols = [
+        ("Apple", "AAPL", "#22c55e"),
+        ("Microsoft", "MSFT", "#3b82f6"),
+        ("Tesla", "TSLA", "#ef4444"),
+    ]
+
+    results = []
+
+    async with httpx.AsyncClient() as client:
+        try:
+            for name, symbol, color in symbols:
+                params = {
+                    "function": "GLOBAL_QUOTE",
+                    "symbol": symbol,
+                    "apikey": ALPHAVANTAGE_API_KEY,
+                }
+                resp = await client.get(base_url, params=params, timeout=5.0)
+                print(f"Alpha Vantage {symbol} status:", resp.status_code)
+                data = resp.json()
+
+                quote = data.get("Global Quote") or data.get("GlobalQuote") or {}
+                price_str = quote.get("05. price") or quote.get("05.price")
+
+                if not price_str:
+                    print(f"Missing price for {symbol}, got:", data)
+                    raise ValueError("No price in response")
+
+                price = float(price_str)
+
+                results.append(
+                    {
+                        "name": name,
+                        "symbol": symbol,
+                        "price": price,
+                        "color": color,
+                        "icon": "📈",
+                    }
+                )
+
+            return {"success": True, "data": results}
+        except Exception as e:
+            print("Alpha Vantage fetch error:", repr(e))
+            return {"success": True, "data": STOCK_FALLBACK_DATA}
+        

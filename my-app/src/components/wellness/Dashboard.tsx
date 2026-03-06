@@ -9,11 +9,11 @@ import {
   Linking,
 } from "react-native";
 import { C, ASSETS as FALLBACK_ASSETS, WEALTH_HISTORY, fmt } from "./constants";
-import { Card, Badge, ProgressBar, styles, CryptoLiveTicker } from "./SharedUI";
+import { Card, Badge, ProgressBar, styles, CryptoLiveTicker, StockLiveTicker } from "./SharedUI";
 import { LineChart, DonutChart } from "./Charts";
 import { BlobEcosystem } from "./BlobEcosystem";
 import { AssetDetailSheet } from "./AssetDetailSheet";
-import { Gift, Zap } from "lucide-react-native";
+import { Gift, Zap, Bitcoin, PiggyBank, Home, ChartLine, ScrollText, TrendingUp  } from "lucide-react-native";
 
 const BASE_URL = "http://10.0.2.2:8000/api";
 
@@ -29,6 +29,14 @@ export function Dashboard({ onNavigate, mode }: any) {
   const [isConnected, setIsConnected] = useState(false);
 
   const [villainAlert, setVillainAlert] = useState<any>(null);
+
+  const assetIcons: Record<string, any> = {
+    "Stocks":       TrendingUp,
+    "Real Estate":  Home,
+    "Savings":      PiggyBank,
+    "Crypto":       Bitcoin,
+    "Bonds":        ScrollText,
+  };
 
   // Reusable function to fetch the latest portfolio data
   const fetchPortfolio = () => {
@@ -166,23 +174,60 @@ export function Dashboard({ onNavigate, mode }: any) {
         </View>
       </View>
 
-      {/* Blob Ecosystem */}
-      <Card style={{ padding: 16, marginBottom: 12 }}>
-        <Text
-          style={{
-            fontWeight: "700",
-            fontSize: 16,
-            color: C.text,
-            marginBottom: 2,
-          }}
-        >
-          Your Wealth Ecosystem
-        </Text>
-        <Text style={{ fontSize: 12, color: C.muted, marginBottom: 12 }}>
-          Watch your assets float · Tap to explore
-        </Text>
-        <BlobEcosystem assets={assets} onBlobTap={setSelAsset} />
-      </Card>
+{/* ── Unified Wealth Overview ── */}
+<Card style={{ padding: 16, marginBottom: 12 }}>
+  
+  {/* Header + Total */}
+  <View style={{ flexDirection:"row", justifyContent:"space-between", alignItems:"flex-start", marginBottom: 16 }}>
+    <View>
+      <Text style={{ fontWeight:"700", fontSize:16, color:C.text }}>Wealth Overview</Text>
+      <Text style={{ fontSize:12, color:C.muted }}>Tap a blob to explore</Text>
+    </View>
+    <View style={{ alignItems:"flex-end" }}>
+      <Text style={{ fontSize:28, fontWeight:"900", color:C.text, letterSpacing:-1 }}>
+        {fmt(totalWealth)}
+      </Text>
+      <Text style={{ fontSize:12, color:"#10b981", fontWeight:"600" }}>↑ +12.5% this month</Text>
+      {isConnected && (
+        <View style={{ flexDirection:"row", alignItems:"center", gap:4, marginTop:2 }}>
+          <View style={{ width:6, height:6, borderRadius:3, backgroundColor:"#10b981" }}/>
+          <Text style={{ fontSize:10, color:"#10b981" }}>Live</Text>
+        </View>
+      )}
+    </View>
+  </View>
+
+  {/* Blob Ecosystem */}
+  <BlobEcosystem assets={assets} onBlobTap={setSelAsset} />
+
+{/* Asset list */}
+<View style={{ marginTop: 16 }}>
+{assets.map((a: any, i: number) => {
+  const Icon = assetIcons[a.name] ?? TrendingUp;
+  return (
+    <TouchableOpacity
+      key={a.name}
+      onPress={() => setSelAsset(a)}
+      activeOpacity={0.75}
+      style={{
+        flexDirection: "row",
+        alignItems: "center",
+        paddingVertical: 10,
+        borderTopWidth: i === 0 ? 0 : 1,
+        borderTopColor: "rgba(0,0,0,0.05)",
+        gap: 10,
+      }}
+    >
+      {/* Color dot + lucide icon + name */}
+      <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: a.color }} />
+      <Icon size={16} color={a.color} />
+      <Text style={{ fontSize: 13, fontWeight: "700", color: C.text, flex: 1 }}>{a.name}</Text>
+      <Text style={{ fontSize: 14, fontWeight: "800", color: C.text }}>{fmt(a.value)}</Text>
+    </TouchableOpacity>
+  );
+})}
+</View>
+</Card>
 
       {/* DYNAMIC 3-ACT DEMO UI */}
       {!isConnected ? (
@@ -288,45 +333,7 @@ export function Dashboard({ onNavigate, mode }: any) {
         )
       )}
       <CryptoLiveTicker/>
-      {/* Total Wealth */}
-      <View style={[styles.gradientCard, { marginBottom: 12 }]}>
-        <View style={styles.gradientCircle} />
-        <Text
-          style={{
-            fontSize: 13,
-            color: "rgba(255,255,255,0.75)",
-            marginBottom: 4,
-          }}
-        >
-          Total Wealth
-        </Text>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-          <Text
-            style={{
-              fontSize: 42,
-              fontWeight: "900",
-              color: "white",
-              letterSpacing: -2,
-            }}
-          >
-            {fmt(totalWealth)}
-          </Text>
-          {isConnected && (
-            <View
-              style={{
-                width: 10,
-                height: 10,
-                borderRadius: 5,
-                backgroundColor: "#10b981",
-                marginTop: 10,
-              }}
-            />
-          )}
-        </View>
-        <Text style={{ fontSize: 14, color: "#86efac", marginTop: 6 }}>
-          ↑ +12.5% this month
-        </Text>
-      </View>
+      <StockLiveTicker/>
 
       {/* Quick Actions */}
       <View
@@ -390,58 +397,6 @@ export function Dashboard({ onNavigate, mode }: any) {
             <ProgressBar value={val} color={color} height={7} />
           </View>
         ))}
-      </Card>
-
-      {/* Asset Breakdown */}
-      <Card style={{ marginBottom: 12 }}>
-        <Text
-          style={{
-            fontWeight: "700",
-            fontSize: 16,
-            color: C.text,
-            marginBottom: 4,
-          }}
-        >
-          Asset Breakdown
-        </Text>
-        <Text style={{ fontSize: 12, color: C.muted, marginBottom: 14 }}>
-          Tap any asset for details
-        </Text>
-        <View style={{ alignItems: "center", marginBottom: 14 }}>
-          <DonutChart assets={assets} />
-        </View>
-        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-          {assets.map((a: any) => (
-            <TouchableOpacity
-              key={a.name}
-              onPress={() => setSelAsset(a)}
-              activeOpacity={0.75}
-              style={{
-                backgroundColor: `${a.color}0e`,
-                borderColor: `${a.color}2e`,
-                borderWidth: 1,
-                borderRadius: 12,
-                padding: 10,
-                flexDirection: "row",
-                alignItems: "center",
-                gap: 8,
-                width: "47%",
-              }}
-            >
-              <Text style={{ fontSize: 18 }}>{a.emoji}</Text>
-              <View>
-                <Text
-                  style={{ fontSize: 12, color: C.text, fontWeight: "700" }}
-                >
-                  {a.name}
-                </Text>
-                <Text style={{ fontSize: 11, color: C.muted }}>
-                  {fmt(a.value)}
-                </Text>
-              </View>
-            </TouchableOpacity>
-          ))}
-        </View>
       </Card>
 
       {/* Trajectory */}
