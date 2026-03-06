@@ -1799,46 +1799,14 @@ export function Menu({ mode, onModeToggle, onNavigate }: any) {
           </View>
         </View>
       </Card>
-      <Card style={{ marginBottom: 12 }}>
-        <Text
-          style={{
-            fontWeight: "700",
-            fontSize: 12,
-            color: C.muted,
-            marginBottom: 12,
-            textTransform: "uppercase",
-            letterSpacing: 0.8,
-          }}
-        >
-          Features
-        </Text>
-        {items.map((item) => (
-          <TouchableOpacity
-            key={item.id}
-            onPress={() => onNavigate(item.id)}
-            style={{
-              paddingVertical: 13,
-              flexDirection: "row",
-              alignItems: "center",
-              gap: 14,
-              borderBottomColor: C.cardBorder,
-              borderBottomWidth: 1,
-            }}
-          >
-            <Text style={{ fontSize: 20, width: 28 }}>{item.emoji}</Text>
-            <Text
-              style={{
-                fontSize: 15,
-                fontWeight: "500",
-                color: C.text,
-                flex: 1,
-              }}
-            >
-              {item.label}
+      <Card style={{ backgroundColor: "#fca5a5" }}>
+         <View style={{ flexDirection: "row", alignItems: "center", justifyContent:"center" }}>
+          <View>
+            <Text style={{ fontWeight: "700", fontSize: 20, color:"white" }}>
+              Sign Out
             </Text>
-            <Text style={{ color: C.muted, fontSize: 18 }}>›</Text>
-          </TouchableOpacity>
-        ))}
+          </View>
+        </View>
       </Card>
     </ScrollView>
   );
