@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from "react"; // Added useEffect
-import { View, Text, ScrollView, TouchableOpacity, Modal, ActivityIndicator } from "react-native";
-// Rename the imported ASSETS to FALLBACK_ASSETS so it doesn't clash with our new state variable
+import React, { useState, useEffect } from "react"; 
+import { View, Text, ScrollView, TouchableOpacity, Modal, ActivityIndicator, Linking } from "react-native";
+// Rename the imported ASSETS to FALLBACK_ASSETS so it doesn't clash with our live state variable
 import { C, ASSETS as FALLBACK_ASSETS, WEALTH_HISTORY, fmt } from "./constants"; 
 import { Card, Badge, ProgressBar, styles } from "./SharedUI";
 import { LineChart, DonutChart } from "./Charts";
@@ -14,9 +14,13 @@ export function Dashboard({ onNavigate, mode }: any) {
   const [assets, setAssets] = useState(FALLBACK_ASSETS);
   const [totalWealth, setTotalWealth] = useState(487500);
   
-  // NEW: Loading state for the demo button
-  const [isConnecting, setIsConnecting] = useState(false);
+  // Setup separated loading states for the demo
+  const [isConnectingBank, setIsConnectingBank] = useState(false);
+  const [isConnectingStripe, setIsConnectingStripe] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
+
+  // State to hold the active Villain Arc alert
+  const [villainAlert, setVillainAlert] = useState<any>(null);
 
   const BACKEND_URL = "http://10.0.2.2:8000/api/portfolio";
 
@@ -32,31 +36,81 @@ export function Dashboard({ onNavigate, mode }: any) {
       .catch((err) => console.error("Fetch failed:", err));
   };
 
-  // Run once when the app loads
+  // Fetch the Villain Arc data
+  const fetchVillainData = () => {
+    fetch("http://10.0.2.2:8000/api/villain")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.alerts && data.alerts.length > 0) {
+          setVillainAlert(data.alerts[0]);
+        }
+      })
+      .catch((err) => console.error("Villain Fetch Error:", err));
+  };
+
+  // THE STEALTH TRIGGER: Ruins data for the demo pitch
+  const handleSecretSabotage = () => {
+    fetch("http://10.0.2.2:8000/api/demo/sabotage", { method: "POST" })
+      .then(() => {
+        // Fetch the newly ruined numbers!
+        setIsConnected(true);
+        fetchPortfolio();
+        // Fetch the AI roast!
+        fetchVillainData();
+      })
+      .catch((err) => console.error(err));
+  };
+
+  // Run once when the app loads (Basic static data)
   useEffect(() => {
     fetchPortfolio();
   }, []);
 
-  // NEW: The Demo Magic Function to hit the Plaid Sandbox
+  // ACT 1: Pure Data Sync (Connect Bank)
   const handleConnectBank = () => {
-    setIsConnecting(true);
+    setIsConnectingBank(true);
     
-    // Call the magic Python route
-    fetch("http://10.0.2.2:8000/api/portfolio/plaid/demo-connect", { method: "POST" })
-      .then(res => res.json())
-      .then(data => {
-        if (data.success) {
-          console.log("🏦 Plaid Sandbox Connected!");
-          // It worked! Fetch the new live Plaid data to update the UI
-          fetchPortfolio();
-          setIsConnected(true);
-        }
-        setIsConnecting(false);
-      })
-      .catch(err => {
-        console.error("Plaid Demo Error:", err);
-        setIsConnecting(false);
-      });
+    // Simulate a secure 2-second connection handshake
+    setTimeout(() => {
+      setIsConnected(true);
+      setIsConnectingBank(false);
+      
+      // 1. Fetch the live numbers
+      fetchPortfolio(); 
+      
+      // 2. Ask the backend if these new numbers trigger any warnings
+      fetchVillainData(); 
+    }, 2000); 
+  };
+
+  // ACT 3: The Stripe Top-Up Redemption Flow
+  const handleTopUp = async () => {
+    setIsConnectingStripe(true);
+    
+    try {
+      // 1. Generate Stripe Checkout URL
+      const res = await fetch("http://10.0.2.2:8000/api/portfolio/stripe/top-up", { method: "POST" });
+      const data = await res.json();
+
+      if (data.success && data.url) {
+        console.log("💳 Opening Stripe Checkout...");
+        // 2. Open phone browser
+        Linking.openURL(data.url);
+        
+        // 3. Wait 5 seconds, then confirm payment to update numbers
+        setTimeout(async () => {
+          await fetch("http://10.0.2.2:8000/api/portfolio/stripe/confirm", { method: "POST" });
+          fetchPortfolio(); 
+          setVillainAlert(null); // Clear the warning card because they fixed it!
+          setIsConnectingStripe(false);
+        }, 5000); 
+      } else {
+        setIsConnectingStripe(false);
+      }
+    } catch (err) {
+      console.error("Top Up Error:", err);
+      setIsConnectingStripe(false);
+    }
   };
 
   return (
@@ -64,7 +118,10 @@ export function Dashboard({ onNavigate, mode }: any) {
       {/* Header */}
       <View style={{flexDirection:"row",justifyContent:"space-between",alignItems:"flex-start",marginBottom:18}}>
         <View>
-          <Text style={{fontSize:26,fontWeight:"900",color:C.text,letterSpacing:-0.8}}>Wealth Wellness</Text>
+          {/* Secret invisible button for the demo! */}
+          <TouchableOpacity activeOpacity={1} onLongPress={handleSecretSabotage}>
+            <Text style={{fontSize:26,fontWeight:"900",color:C.text,letterSpacing:-0.8}}>Wealth Wellness</Text>
+          </TouchableOpacity>
           <Text style={{fontSize:13,color:C.muted}}>Your financial health at a glance</Text>
         </View>
         <Badge color={mode==="growth"?C.accent:"#8b5cf6"}>
@@ -79,13 +136,14 @@ export function Dashboard({ onNavigate, mode }: any) {
         <BlobEcosystem assets={assets} onBlobTap={setSelAsset}/>
       </Card>
 
-      {/* DEMO MAGIC: CONNECT BANK BUTTON */}
-      {!isConnected && (
+      {/* DYNAMIC 3-ACT DEMO UI */}
+      {!isConnected ? (
+        // ACT 1: Before Connecting
         <TouchableOpacity 
           onPress={handleConnectBank}
-          disabled={isConnecting}
+          disabled={isConnectingBank}
           style={{ 
-            backgroundColor: isConnecting ? '#374151' : '#111827', 
+            backgroundColor: isConnectingBank ? '#374151' : '#111827', 
             padding: 16, 
             borderRadius: 16, 
             marginBottom: 16,
@@ -95,11 +153,11 @@ export function Dashboard({ onNavigate, mode }: any) {
             gap: 10
           }}
         >
-          {isConnecting ? (
+          {isConnectingBank ? (
             <>
               <ActivityIndicator color="white" />
               <Text style={{ color: 'white', fontWeight: '800', fontSize: 16 }}>
-                Syncing securely with Plaid...
+                Syncing securely...
               </Text>
             </>
           ) : (
@@ -108,13 +166,48 @@ export function Dashboard({ onNavigate, mode }: any) {
             </Text>
           )}
         </TouchableOpacity>
+      ) : (
+        // ACT 2 & 3: After Connecting (Show Villain Alert if it exists)
+        villainAlert && (
+          <View style={{ backgroundColor: '#3f1d38', padding: 18, borderRadius: 16, marginBottom: 12, borderWidth: 1, borderColor: '#be123c' }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
+              <Text style={{ fontSize: 24, marginRight: 8 }}>{villainAlert.emoji}</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: '#fda4af', fontWeight: '800', fontSize: 13, textTransform: 'uppercase' }}>
+                  Villain Arc Detected
+                </Text>
+                <Text style={{ color: 'white', fontWeight: '600', fontSize: 14, marginTop: 2 }}>
+                  {villainAlert.message}
+                </Text>
+              </View>
+            </View>
+            <TouchableOpacity 
+              onPress={handleTopUp}
+              disabled={isConnectingStripe}
+              style={{ backgroundColor: isConnectingStripe ? '#881337' : '#e11d48', padding: 14, borderRadius: 12, marginTop: 6, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8 }}
+            >
+              {isConnectingStripe ? (
+                <ActivityIndicator color="white" />
+              ) : (
+                <Text style={{ color: 'white', fontWeight: '800', fontSize: 15 }}>
+                  💳 Offset Damage: Top Up $500
+                </Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        )
       )}
 
       {/* Total Wealth */}
       <View style={[styles.gradientCard,{marginBottom:12}]}>
         <View style={styles.gradientCircle}/>
         <Text style={{fontSize:13,color:"rgba(255,255,255,0.75)",marginBottom:4}}>Total Wealth</Text>
-        <Text style={{fontSize:42,fontWeight:"900",color:"white",letterSpacing:-2}}>$487,500</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <Text style={{fontSize:42,fontWeight:"900",color:"white",letterSpacing:-2}}>{fmt(totalWealth)}</Text>
+          {isConnected && (
+            <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: '#10b981', marginTop: 10 }} />
+          )}
+        </View>
         <Text style={{fontSize:14,color:"#86efac",marginTop:6}}>↑ +12.5% this month</Text>
       </View>
 
@@ -124,7 +217,12 @@ export function Dashboard({ onNavigate, mode }: any) {
           {id:"simulator",emoji:"⚡",label:"Simulate Event"},
           {id:"wrapped",emoji:"🎁",label:"Quarterly Wrap"},
         ].map(item=>(
-          <TouchableOpacity key={item.id} onPress={()=>onNavigate(item.id)} style={styles.quickAction} activeOpacity={0.75}>
+          <TouchableOpacity 
+            key={item.id} 
+            onPress={() => onNavigate(item.id)} // BACK TO NORMAL NAVIGATION
+            style={styles.quickAction} 
+            activeOpacity={0.75}
+          >
             <Text style={{fontSize:22}}>{item.emoji}</Text>
             <Text style={{fontSize:12,color:C.muted,fontWeight:"600"}}>{item.label}</Text>
           </TouchableOpacity>
@@ -154,7 +252,7 @@ export function Dashboard({ onNavigate, mode }: any) {
           <DonutChart assets={assets}/>
         </View>
         <View style={{flexDirection:"row",flexWrap:"wrap",gap:8}}>
-          {assets.map(a=>(
+          {assets.map((a: any) =>(
             <TouchableOpacity key={a.name} onPress={()=>setSelAsset(a)} activeOpacity={0.75}
               style={{backgroundColor:`${a.color}0e`,borderColor:`${a.color}2e`,borderWidth:1,borderRadius:12,padding:10,flexDirection:"row",alignItems:"center",gap:8,width:"47%"}}>
               <Text style={{fontSize:18}}>{a.emoji}</Text>
