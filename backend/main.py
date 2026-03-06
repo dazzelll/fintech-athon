@@ -259,31 +259,6 @@ async def get_villain_data(req: VillainRoastRequest):
         "history": []
     }
 
-class ProphecyRequest(BaseModel):
-    mode: str
-    goalsSummary: str
-@app.post("/api/manifestation/prophecy")
-async def get_manifestation_prophecy(req: ProphecyRequest):
-    """Endpoint for the Manifestation Board to get a Gemini prophecy"""
-    prophecy = await generate_gemini_prophecy(
-    mode=data.get('mode', 'growth'),
-    goals_summary=f"Projected wealth: ${projected:,} by {2026 + years + 5}, health score: 85"
-)
-    
-@app.post("/api/villain/roast")
-async def get_villain_roast():
-    """Always generates a snarky portfolio check based on current state"""
-    assets = copy.deepcopy(MOCK_ASSETS)
-    
-    # Apply sabotage if active so advice reflects real current state
-    if HACKATHON_SABOTAGE_MODE:
-        for a in assets:
-            if a['name'] == 'Savings': a['value'] = 15000
-            if a['name'] == 'Crypto':  a['value'] = 120000
-
-    roast = await generate_villain_roast(assets)
-    return {"success": True, "roast": roast}
-
 @app.get("/api/crypto/live-prices")
 async def get_live_crypto_prices():
     url = "https://api.coingecko.com/api/v3/simple/price"
