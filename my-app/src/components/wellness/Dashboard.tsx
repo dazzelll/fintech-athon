@@ -158,14 +158,14 @@ export function Dashboard({ onNavigate, mode }: any) {
           >
             <Text
               style={{
-                fontSize: 26,
+                fontSize: 28,
                 fontWeight: "900",
                 color: C.text,
                 letterSpacing: -0.8,
                 paddingTop: 30,
               }}
             >
-              Wealth Wellness
+              Stack'd
             </Text>
           </TouchableOpacity>
           <Text style={{ fontSize: 13, color: C.muted }}>

@@ -5,7 +5,7 @@ import {
   ScrollView,
   TouchableOpacity,
   TextInput,
-  Dimensions, Animated, StyleSheet
+  Dimensions, Animated, StyleSheet, ActivityIndicator
 } from "react-native";
 import { C, ASSETS, fmt, pctC } from "./constants";
 import { Card, Badge, ProgressBar, BackBtn, styles } from "./SharedUI";
@@ -15,6 +15,26 @@ import { Icon } from "expo-router";
 
 // ─── WEALTH BLOB ──────────────────────────────────────────────────────────────
 export function WealthBlob({ onBack }: any) {
+  const [assets, setAssets] = useState(ASSETS);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const res = await fetch("http://10.0.2.2:8000/api/portfolio/sandbox");
+        const data = await res.json();
+        if (data.assets && Array.isArray(data.assets)) {
+          setAssets(data.assets);
+        }
+      } catch (e) {
+        console.log("sandbox portfolio fetch failed, using defaults", e);
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, []);
+
   return (
     <ScrollView contentContainerStyle={{ paddingBottom: 100 }}>
       <BackBtn
@@ -36,7 +56,19 @@ export function WealthBlob({ onBack }: any) {
         <Text style={{ fontSize: 12, color: C.muted, marginBottom: 12 }}>
           Your blob's mood reflects your wellness
         </Text>
-        <BlobEcosystem assets={ASSETS} onBlobTap={() => {}} />
+        {loading ? (
+          <View
+            style={{
+              height: 340,
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <ActivityIndicator />
+          </View>
+        ) : (
+          <BlobEcosystem assets={assets} onBlobTap={() => {}} />
+        )}
         <View style={{ alignItems: "center", marginTop: 14 }}>
           <Text style={{ fontSize: 18, fontWeight: "700", color: C.text }}>
             😊 Happy & Healthy

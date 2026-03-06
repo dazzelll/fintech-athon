@@ -66,6 +66,9 @@ FALLBACK_DATA = [
     {"name": "Solana", "symbol": "SOL", "price": 185.20, "color": "#14f195", "icon": "◎"},
 ]
 
+ALPACA_API_KEY_ID = os.getenv("ALPACA_API_KEY_ID")
+ALPACA_API_SECRET_KEY = os.getenv("ALPACA_API_SECRET_KEY")
+ALPACA_BASE_URL = os.getenv("ALPACA_BASE_URL", "https://paper-api.alpaca.markets")
 
 # --- ROUTES ---
 
@@ -162,6 +165,67 @@ async def get_portfolio():
             {"m": "Mar", "v": total}
         ]
     }
+
+class SandboxPortfolio(BaseModel):
+    total: float
+    assets: list
+
+async def fetch_alpaca_portfolio() -> SandboxPortfolio | None:
+    """Fetch positions from Alpaca paper account and normalize into your asset shape."""
+    if not (ALPACA_API_KEY_ID and ALPACA_API_SECRET_KEY):
+        return None  # no keys → caller will fall back
+
+    headers = {
+        "APCA-API-KEY-ID": ALPACA_API_KEY_ID,
+        "APCA-API-SECRET-KEY": ALPACA_API_SECRET_KEY,
+    }
+
+    async with httpx.AsyncClient(base_url=ALPACA_BASE_URL, headers=headers, timeout=5.0) as client:
+        try:
+            # 1) Account equity
+            acct_resp = await client.get("/v2/account")
+            acct_resp.raise_for_status()
+            acct = acct_resp.json()
+            equity = float(acct.get("portfolio_value", 0.0))
+
+            # 2) Positions
+            pos_resp = await client.get("/v2/positions")
+            pos_resp.raise_for_status()
+            positions = pos_resp.json()
+
+            # Aggregate into your asset buckets
+            stocks_value = 0.0
+            for p in positions:
+                qty = float(p.get("qty", 0))
+                price = float(p.get("current_price", 0))
+                stocks_value += qty * price
+
+            # Simple demo: treat all Alpaca holdings as "Stocks"
+            assets = [
+                {
+                    "name": "Stocks",
+                    "value": stocks_value,
+                    "pct": 0,   # fill later
+                    "color": "#3b82f6",
+                    "emoji": "📈",
+                    "mood": "happy",
+                },
+                # leave your existing buckets as placeholders for now
+            ]
+
+            # If equity is 0 or weird, just bail and let caller use fallback
+            total = equity if equity > 0 else stocks_value
+            if total <= 0:
+                return None
+
+            # Compute percentages
+            for a in assets:
+                a["pct"] = round((a["value"] / total) * 100) if total > 0 else 0
+
+            return SandboxPortfolio(total=total, assets=assets)
+        except Exception as e:
+            print("Alpaca sandbox fetch error:", repr(e))
+            return None
 
 
 class SimulatorRequest(BaseModel):
@@ -372,3 +436,39 @@ async def get_live_stock_prices():
             print("Alpha Vantage fetch error:", repr(e))
             return {"success": True, "data": STOCK_FALLBACK_DATA}
         
+@app.get("/api/portfolio/sandbox")
+async def get_sandbox_portfolio():
+    """
+    Try to build a portfolio from sandbox (Alpaca).
+    If anything fails, fall back to the existing mock /api/portfolio logic.
+    """
+    sandbox = await fetch_alpaca_portfolio()
+    if sandbox is None:
+        # Fallback: reuse the existing logic from /api/portfolio
+        return await get_portfolio()
+
+    # Reuse existing health/wealth age logic so the blob + villain arc still work
+    assets = sandbox.assets
+    total = sandbox.total
+
+    portfolio_obj = {"total": total, "assets": assets}
+    health = calculate_health_score(portfolio_obj, villain_events_count=0, streak_avg=12)
+    wealth_age = calculate_wealth_age(total, 35, health["overall"])
+
+    # Ensure moods for blobs
+    for a in assets:
+        if a["name"] == "Crypto" and a.get("pct", 0) > 30:
+            a["mood"] = "worried"
+        elif a.get("pct", 0) > 0:
+            a["mood"] = "happy"
+        else:
+            a["mood"] = "neutral"
+
+    return {
+        "total": total,
+        "assets": assets,
+        "health": health,
+        "wealth_age": wealth_age,
+        "villain_event_active": False,
+        "history": [],
+    }
