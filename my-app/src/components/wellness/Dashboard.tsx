@@ -498,15 +498,6 @@ export function Dashboard({ onNavigate, mode }: any) {
         ))}
       </View>
 
-      <TouchableOpacity
-        onPress={() => onNavigate("challenges")}
-        style={styles.outlineButton}
-      >
-        <Text style={{ color: C.text, fontSize: 14, fontWeight: "600" }}>
-          🎯 View Financial Challenges
-        </Text>
-      </TouchableOpacity>
-
       {/* Asset Detail Modal */}
       <Modal
         visible={!!selAsset}

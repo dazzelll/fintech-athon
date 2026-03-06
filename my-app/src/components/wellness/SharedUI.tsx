@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { C } from './constants';
-import { Home, Target, Settings, ChevronLeft } from 'lucide-react-native';
+import { Home, Target, Settings, ChevronLeft, Trophy } from 'lucide-react-native';
 
 export function Card({ children, style={}, onPress }: any) {
   return (
@@ -45,6 +45,7 @@ export function BottomNav({ active, onNavigate }: any) {
   const items = [
     { id: "dashboard",     icon: Home,     label: "Home"  },
     { id: "manifestation", icon: Target,   label: "Goals" },
+    { id: "challenges",  icon: Trophy,  label: "Challenges" },
     { id: "menu",          icon: Settings, label: "Settings"  },
   ];
 
