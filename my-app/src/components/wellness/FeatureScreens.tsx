@@ -449,9 +449,13 @@ export function ManifestationBoard({ onBack }: any) {
   
       const res = await fetch(BACKEND_URL, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Accept": "application/json", 
+          "Content-Type": "application/json" 
+        },
         body: JSON.stringify({
-          riskLevel: riskLevel, // Sending the number to the backend
+          // THE FIX: Translate the number into the string the backend expects!
+          mode: riskLevel > 5 ? "growth" : "frugal", 
           goalsSummary: goalsSummary
         })
       });

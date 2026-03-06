@@ -1,7 +1,6 @@
 import math
 import os
 from dotenv import load_dotenv
-import httpx
 
 import google.generativeai as genai
 
@@ -58,34 +57,25 @@ def calculate_wealth_age(total_wealth, real_age, health_score):
 
 # --- AI SERVICE ---
 async def generate_gemini_prophecy(mode: str, goals_summary: str):
-    """Calls the Gemini 2.5 Flash API to generate a mystical financial prophecy."""
-    api_key = os.getenv("GEMINI_API_KEY")
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
-    
-    prompt = f"""You are a mystical financial oracle who speaks in dramatic, fun prophecy style — like a mix of a fortune cookie, a hype friend, and a financial advisor. Use "bestie", "the stars", "the algorithm has spoken" type language. Be specific with numbers but deliver it mystically.
-    
+    """Manifestation Board Prophecy via Official GenAI SDK"""
+    try:
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        
+        prompt = f"""You are a mystical financial oracle who speaks in dramatic, fun prophecy style — like a mix of a fortune cookie, a hype friend, and a financial advisor. Use "bestie", "the stars", "the algorithm has spoken" type language. Be specific with numbers but deliver it mystically.
+        
 The user is in {'GROWTH mode (maximize returns)' if mode == 'growth' else 'FRUGAL mode (minimize spending)'}.
 
 Their goals: {goals_summary}
 
 Give a short mystical prophecy (3-4 sentences) about their financial future. End with "The oracle commands:" and one specific action."""
 
-    payload = {
-        "contents": [{"parts": [{"text": prompt}]}]
-    }
-
-    async with httpx.AsyncClient() as client:
-        try:
-            response = await client.post(url, json=payload, headers={"Content-Type": "application/json"})
-            data = response.json()
-            
-            if "error" in data:
-                return f"The stars are clouded... {data['error'].get('message', 'API Error')}"
-                
-            return data["candidates"][0]["content"]["parts"][0]["text"]
-        except Exception as e:
-            print(f"Gemini Error: {e}")
-            return "The oracle is temporarily disconnected from the cosmos. Try again later."
+        # Use the official SDK instead of raw HTTP requests!
+        response = await model.generate_content_async(prompt)
+        return response.text.strip()
+        
+    except Exception as e:
+        print(f"Gemini SDK Error: {e}")
+        return "The oracle is temporarily disconnected from the cosmos. Try again later."
     
 async def generate_villain_roast(assets_data):
     try:
