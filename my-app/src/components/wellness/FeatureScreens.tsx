@@ -1587,137 +1587,163 @@ export function Challenges({ onBack }: any) {
   );
 }
 
+
 // ─── VILLAIN ARC ──────────────────────────────────────────────────────────────
 export function VillainArc({ onBack }: any) {
-  const [note, setNote] = useState("");
+  const [note, setNote]             = useState("");
+  const [alerts, setAlerts]         = useState<any[]>([]);
+  const [roast, setRoast]           = useState<string | null>(null);
+  const [loading, setLoading]       = useState(false);
+  const [caughtIn4K, setCaughtIn4K] = useState<string[]>([]);
+
+  const BACKEND = "http://10.0.2.2:8000";
+
+  useEffect(() => {
+    fetch(`${BACKEND}/api/villain`)
+      .then(res => res.json())
+      .then(data => {
+        setAlerts(data.alerts ?? []);
+        setCaughtIn4K(data.caughtIn4K ?? []);
+        if (data.alerts?.length > 0) setRoast(data.alerts[0].message);
+      })
+      .catch(err => console.error("Villain fetch error:", err));
+  }, []);
+
+  const generateRoast = async () => {
+    setLoading(true);
+    try {
+      const res  = await fetch(`${BACKEND}/api/villain/roast`, { method: "POST" });
+      const data = await res.json();
+      setRoast(data.roast);
+    } catch {
+      setRoast("portfolio check is offline rn, try again later");
+    }
+    setLoading(false);
+  };
+
   const refs = [
-    {
-      id: "1",
-      date: "Feb 15",
-      tx: "Impulse gadget purchase",
-      amount: 1200,
-      emotion: "regret",
-      notes:
-        "Bought latest phone when current one works fine. Classic FOMO spending.",
-    },
-    {
-      id: "2",
-      date: "Jan 28",
-      tx: "Panic sold stocks during dip",
-      amount: 5000,
-      emotion: "learning",
-      notes:
-        "Market dropped 10% and I panicked. Sold at a loss. Market recovered in weeks.",
-    },
-    {
-      id: "3",
-      date: "Jan 5",
-      tx: "FOMO'd into random crypto",
-      amount: 2000,
-      emotion: "learning",
-      notes:
-        "Lost 40% in a week. Research before investing in volatile assets.",
-    },
+    { id:"1", date:"Feb 15", tx:"Impulse gadget purchase",      amount:1200, emotion:"regret",   notes:"Bought latest phone when current one works fine. Classic FOMO spending." },
+    { id:"2", date:"Jan 28", tx:"Panic sold stocks during dip", amount:5000, emotion:"learning", notes:"Market dropped 10% and I panicked. Sold at a loss. Market recovered in weeks." },
+    { id:"3", date:"Jan 5",  tx:"FOMO'd into random crypto",    amount:2000, emotion:"learning", notes:"Lost 40% in a week. Research before investing in volatile assets." },
   ];
+
   return (
     <ScrollView contentContainerStyle={{ paddingBottom: 100 }}>
-      <BackBtn
-        onBack={onBack}
-        title="Villain Arc"
-        subtitle="Reflect on financial missteps"
-      />
-      <View
-        style={{
-          backgroundColor: "#6d28d9",
-          borderRadius: 20,
-          padding: 20,
-          marginBottom: 12,
-        }}
-      >
-        <View
-          style={{
-            flexDirection: "row",
-            alignItems: "center",
-            gap: 10,
-            marginBottom: 12,
-          }}
-        >
-          <Text style={{ fontSize: 24 }}>⚠️</Text>
-          <Text style={{ fontWeight: "800", fontSize: 18, color: "white" }}>
-            Financial Reflections
-          </Text>
+      <BackBtn onBack={onBack} title="Villain Arc" subtitle="Reflect on financial missteps" />
+
+      {/* ── AI Alert Banner (only shows if sabotage active) ── */}
+      {alerts.length > 0 && (
+        <View style={{
+          backgroundColor: "#3f1d38", borderRadius: 20, padding: 20,
+          marginBottom: 12, borderWidth: 1, borderColor: "#be123c",
+        }}>
+          <View style={{ flexDirection:"row", alignItems:"center", gap:10, marginBottom:6 }}>
+            <Text style={{ fontSize: 24 }}>{alerts[0].emoji}</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={{ color:"#fda4af", fontWeight:"800", fontSize:12, textTransform:"uppercase" }}>
+                Villain Arc Detected 🚨
+              </Text>
+              <Text style={{ color:"white", fontSize:14, marginTop:4, lineHeight:20 }}>
+                {alerts[0].message}
+              </Text>
+            </View>
+          </View>
         </View>
-        <View style={{ flexDirection: "row", gap: 16 }}>
-          <View>
-            <Text style={{ fontSize: 36, fontWeight: "900", color: "white" }}>
-              {refs.length}
-            </Text>
-            <Text style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}>
-              Reflections
+      )}
+
+      {/* ── Caught in 4K ── */}
+      {caughtIn4K.length > 0 && (
+        <Card style={{ marginBottom:12, borderColor:"#f59e0b44", borderWidth:1 }}>
+          <Text style={{ fontWeight:"800", fontSize:15, color:C.text, marginBottom:12 }}>
+            👀 Caught in 4K
+          </Text>
+          {caughtIn4K.map((item, i) => (
+            <View key={i} style={{
+              backgroundColor:"rgba(245,158,11,0.08)", borderRadius:12,
+              padding:12, marginBottom: i < caughtIn4K.length - 1 ? 8 : 0,
+            }}>
+              <Text style={{ fontSize:13, color:C.text }}>{item}</Text>
+            </View>
+          ))}
+        </Card>
+      )}
+
+      {/* ── Portfolio Advisor ── */}
+      <Card style={{ marginBottom:12 }}>
+        <View style={{ flexDirection:"row", alignItems:"center", gap:8, marginBottom:8 }}>
+          <Text style={{ fontSize:20 }}>💡</Text>
+          <Text style={{ fontWeight:"800", fontSize:15, color:"#6d28d9" }}>Portfolio Advisor</Text>
+        </View>
+        <Text style={{ fontSize:12, color:C.muted, marginBottom:12 }}>
+          Get a reality check on your portfolio
+        </Text>
+
+        {roast && (
+          <View style={{
+            backgroundColor:"#6d28d911", borderRadius:12,
+            padding:14, marginBottom:12,
+          }}>
+            <Text style={{ fontSize:13, color:C.text, lineHeight:20 }}>
+              "{roast}"
             </Text>
           </View>
+        )}
+
+        <TouchableOpacity
+          onPress={generateRoast}
+          disabled={loading}
+          style={{ backgroundColor:"#6d28d9", borderRadius:12, padding:13, alignItems:"center" }}
+        >
+          <Text style={{ color:"white", fontWeight:"700", fontSize:14 }}>
+            {loading ? "analyzing..." : "💡 Get Portfolio Check"}
+          </Text>
+        </TouchableOpacity>
+      </Card>
+
+      {/* ── Stats Banner ── */}
+      <View style={{ backgroundColor:"#6d28d9", borderRadius:20, padding:20, marginBottom:12 }}>
+        <View style={{ flexDirection:"row", alignItems:"center", gap:10, marginBottom:12 }}>
+          <Text style={{ fontSize:24 }}>⚠️</Text>
+          <Text style={{ fontWeight:"800", fontSize:18, color:"white" }}>Financial Reflections</Text>
+        </View>
+        <View style={{ flexDirection:"row", gap:24 }}>
           <View>
-            <Text style={{ fontSize: 36, fontWeight: "900", color: "white" }}>
-              {refs.filter((r) => r.emotion === "learning").length}
+            <Text style={{ fontSize:36, fontWeight:"900", color:"white" }}>{refs.length}</Text>
+            <Text style={{ fontSize:12, color:"rgba(255,255,255,0.7)" }}>Reflections</Text>
+          </View>
+          <View>
+            <Text style={{ fontSize:36, fontWeight:"900", color:"white" }}>
+              {refs.filter(r => r.emotion === "learning").length}
             </Text>
-            <Text style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}>
-              Learning Moments
-            </Text>
+            <Text style={{ fontSize:12, color:"rgba(255,255,255,0.7)" }}>Learning Moments</Text>
           </View>
         </View>
       </View>
-      {refs.map((r) => (
-        <Card key={r.id} style={{ marginBottom: 12 }}>
-          <View
-            style={{
-              flexDirection: "row",
-              justifyContent: "space-between",
-              alignItems: "flex-start",
-              marginBottom: 10,
-            }}
-          >
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontWeight: "700", fontSize: 14, color: C.text }}>
-                {r.tx}
-              </Text>
-              <Text style={{ fontSize: 11, color: C.muted }}>
-                {r.date} 2026
-              </Text>
+
+      {/* ── Reflection Cards ── */}
+      {refs.map(r => (
+        <Card key={r.id} style={{ marginBottom:12 }}>
+          <View style={{ flexDirection:"row", justifyContent:"space-between", alignItems:"flex-start", marginBottom:10 }}>
+            <View style={{ flex:1 }}>
+              <Text style={{ fontWeight:"700", fontSize:14, color:C.text }}>{r.tx}</Text>
+              <Text style={{ fontSize:11, color:C.muted }}>{r.date} 2026</Text>
             </View>
             <Badge color={r.emotion === "regret" ? "#ef4444" : "#3b82f6"}>
               {r.emotion === "regret" ? "😞 Regret" : "💡 Learning"}
             </Badge>
           </View>
-          <Text
-            style={{
-              fontSize: 14,
-              fontWeight: "700",
-              color: "#ef4444",
-              marginBottom: 10,
-            }}
-          >
+          <Text style={{ fontSize:14, fontWeight:"700", color:"#ef4444", marginBottom:10 }}>
             -${r.amount.toLocaleString()}
           </Text>
-          <View
-            style={{
-              backgroundColor: "rgba(0,0,0,0.04)",
-              borderRadius: 10,
-              padding: 12,
-            }}
-          >
-            <Text style={{ fontSize: 12, color: C.muted }}>{r.notes}</Text>
+          <View style={{ backgroundColor:"rgba(0,0,0,0.04)", borderRadius:10, padding:12 }}>
+            <Text style={{ fontSize:12, color:C.muted }}>{r.notes}</Text>
           </View>
         </Card>
       ))}
+
+      {/* ── Add Reflection ── */}
       <Card>
-        <Text
-          style={{
-            fontWeight: "700",
-            fontSize: 15,
-            color: C.text,
-            marginBottom: 12,
-          }}
-        >
+        <Text style={{ fontWeight:"700", fontSize:15, color:C.text, marginBottom:12 }}>
           Add New Reflection
         </Text>
         <TextInput
@@ -1727,22 +1753,12 @@ export function VillainArc({ onBack }: any) {
           placeholderTextColor={C.muted}
           multiline
           numberOfLines={4}
-          style={[
-            styles.input,
-            { height: 100, textAlignVertical: "top", marginBottom: 12 },
-          ]}
+          style={[styles.input, { height:100, textAlignVertical:"top", marginBottom:12 }]}
         />
         <TouchableOpacity
-          style={{
-            padding: 13,
-            backgroundColor: "#6d28d9",
-            borderRadius: 12,
-            alignItems: "center",
-          }}
+          style={{ padding:13, backgroundColor:"#6d28d9", borderRadius:12, alignItems:"center" }}
         >
-          <Text style={{ color: "white", fontSize: 14, fontWeight: "700" }}>
-            Save Reflection
-          </Text>
+          <Text style={{ color:"white", fontSize:14, fontWeight:"700" }}>Save Reflection</Text>
         </TouchableOpacity>
       </Card>
     </ScrollView>
