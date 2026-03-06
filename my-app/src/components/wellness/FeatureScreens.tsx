@@ -1,15 +1,16 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef} from "react";
 import {
   View,
   Text,
   ScrollView,
   TouchableOpacity,
   TextInput,
+  Dimensions, Animated, StyleSheet
 } from "react-native";
 import { C, ASSETS, fmt, pctC } from "./constants";
 import { Card, Badge, ProgressBar, BackBtn, styles } from "./SharedUI";
 import { BlobEcosystem } from "./BlobEcosystem";
-import { Sparkle } from "lucide-react-native";
+import { LinearGradient } from "expo-linear-gradient";
 
 // ─── WEALTH BLOB ──────────────────────────────────────────────────────────────
 export function WealthBlob({ onBack }: any) {
@@ -339,12 +340,16 @@ export function EventSimulator({ onBack }: any) {
 }
 
 // ─── MANIFESTATION BOARD ──────────────────────────────────────────────────────
-export function ManifestationBoard({ onBack, mode = "growth" }: any) {
+export function ManifestationBoard({ onBack }: any) {
   const [goals, setGoals] = useState([
     { id:"1", title:"House Down Payment", target:100000, current:45000, deadline:"Dec 2026", emoji:"🏠", cat:"purchase" },
     { id:"2", title:"Portfolio $500K",    target:500000, current:185000, deadline:"Jun 2028", emoji:"📈", cat:"investment" },
     { id:"3", title:"Emergency Fund",     target:60000,  current:55000,  deadline:"Jun 2026", emoji:"🛡️", cat:"savings" },
   ]);
+  
+  // New Risk Level State: 1 to 10
+  const [riskLevel, setRiskLevel]   = useState(5);
+  
   const [adding, setAdding]         = useState(false);
   const [nt, setNt]                 = useState("");
   const [na, setNa]                 = useState("");
@@ -352,8 +357,6 @@ export function ManifestationBoard({ onBack, mode = "growth" }: any) {
   const [prophecy, setProphecy]     = useState<string | null>(null);
   const [loadingProphecy, setLoadingProphecy] = useState(false);
   const [expandedGoal, setExpandedGoal] = useState<string | null>(null);
-  
-  // NOTE: The API_KEY is gone! Your frontend is now secure.
   
   const catC: any = { purchase:"#10b981", investment:"#3b82f6", savings:"#8b5cf6" };
 
@@ -367,37 +370,71 @@ export function ManifestationBoard({ onBack, mode = "growth" }: any) {
     }
   };
 
+  // ── Dynamic Suggestions based on 1-10 Risk Scale ──
   const getSuggestions = (goal: any) => {
     const monthly = ((goal.target - goal.current) / 12).toFixed(0);
-    if (mode === "frugal") {
-      return [
-        `Cut subscriptions & dining out → redirect $${Math.round(parseFloat(monthly) * 0.4).toLocaleString()}/mo`,
-        `Set up auto-transfer of $${monthly}/mo on payday`,
-        `Use cash envelopes to limit discretionary spending`,
-        `Track every purchase — awareness reduces spending by ~20%`,
-      ];
+
+    if (riskLevel >= 8) { 
+      // HIGH RISK (8-10)
+      const agg: any = {
+        purchase: [
+          `Consider a 5% down payment instead of 20% and invest the rest in high-growth ETFs`,
+          `Explore real estate syndications or REITs to accelerate capital generation`,
+          `Accept higher debt-to-income limits if it frees up cash for aggressive investing`
+        ],
+        investment: [
+          `Allocate 15-20% to high-conviction crypto or individual tech stocks`,
+          `Use LEAPS or options to leverage your $${monthly}/mo contributions`,
+          `Accept high volatility: a 30% drop is just a buying opportunity for your timeline`
+        ],
+        savings: [
+          `Keep emergency fund minimal (1-2 months); deploy excess cash into markets`,
+          `Use a high-yield crypto staking protocol (USDC) for 8-10% yield on idle cash`,
+          `Funnel all side-hustle income directly into high-risk, high-reward plays`
+        ]
+      };
+      return agg[goal.cat] || agg.savings;
+    } else if (riskLevel <= 3) { 
+      // LOW RISK (1-3)
+      const cons: any = {
+        purchase: [
+          `Save $${monthly}/mo in a capital-guaranteed CD or T-Bill ladder`,
+          `Aim for a 20%+ down payment to minimize mortgage interest risk`,
+          `Avoid variable interest rates; lock in a fixed-rate mortgage`
+        ],
+        investment: [
+          `Focus on dividend aristocrats and government bonds (60/40 portfolio)`,
+          `Automate $${monthly}/mo into broad, low-volatility ETFs like SCHD`,
+          `Capital preservation is key: aim for a steady 4-5% return without the rollercoaster`
+        ],
+        savings: [
+          `Build a robust 6-9 month emergency fund in a top-tier HYSA (4.5% APY)`,
+          `Use physical cash envelopes to strictly control outgoing expenses`,
+          `Singapore Savings Bonds (SSBs) offer risk-free yield with liquidity`
+        ]
+      };
+      return cons[goal.cat] || cons.savings;
+    } else { 
+      // MODERATE RISK (4-7)
+      const mod: any = {
+        purchase: [
+          `Invest $${monthly}/mo in a 50/50 mix of HYSA and broad index funds`,
+          `Automate savings on payday before spending`,
+          `Look into first-home buyer grants in your area`
+        ],
+        investment: [
+          `DCA $${monthly}/mo into S&P 500 index funds (VOO/VTI) for steady compounding`,
+          `Rebalance quarterly — don't let any asset exceed 40% allocation`,
+          `Reinvest all dividends automatically`
+        ],
+        savings: [
+          `Keep 3-4 months expenses liquid, invest the rest`,
+          `Move to a HYSA earning 4.5% — your $${(goal.current/1000).toFixed(0)}K earns $${Math.round(goal.current * 0.045 / 12)}/mo passively`,
+          `Top up $${monthly}/mo to reach goal by ${goal.deadline}`
+        ]
+      };
+      return mod[goal.cat] || mod.savings;
     }
-    const suggestions: any = {
-      purchase: [
-        `Invest $${monthly}/mo in a high-yield account (4.5% APY) to hit target by ${goal.deadline}`,
-        `Consider a side income stream — freelancing $500/mo cuts timeline by 8 months`,
-        `Automate savings on payday before spending`,
-        `Look into first-home buyer grants in your area`,
-      ],
-      investment: [
-        `DCA $${monthly}/mo into index funds (VOO/VTI) for steady compounding`,
-        `Rebalance quarterly — don't let any asset exceed 40% allocation`,
-        `Reinvest all dividends automatically`,
-        `At 7% avg return, you'll hit $500K in ~${Math.round((Math.log(goal.target / goal.current)) / Math.log(1.07))} years`,
-      ],
-      savings: [
-        `Move to a HYSA earning 4.5% — your $${(goal.current/1000).toFixed(0)}K earns $${Math.round(goal.current * 0.045 / 12)}/mo passively`,
-        `Top up $${monthly}/mo to reach goal by ${goal.deadline}`,
-        `Keep 3-6 months expenses liquid — don't over-save here`,
-        `Singapore SSB or T-bills for low-risk yield if timeframe > 6 months`,
-      ],
-    };
-    return suggestions[goal.cat] || suggestions.savings;
   };
 
   const generateProphecy = async () => {
@@ -408,17 +445,13 @@ export function ManifestationBoard({ onBack, mode = "growth" }: any) {
         `${g.emoji} ${g.title}: $${g.current.toLocaleString()} of $${g.target.toLocaleString()} by ${g.deadline}`
       ).join(", ");
   
-      // IMPORTANT: Update this URL based on how you are running Expo!
-      // - If using iOS Simulator: "http://127.0.0.1:8000/api/manifestation/prophecy"
-      // - If using Android Emulator: "http://10.0.2.2:8000/api/manifestation/prophecy"
-      // - If using a physical phone on Wi-Fi: "http://YOUR_COMPUTER_IP:8000/api/manifestation/prophecy"
       const BACKEND_URL = "http://127.0.0.1:8000/api/manifestation/prophecy";
   
       const res = await fetch(BACKEND_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          mode: mode,
+          riskLevel: riskLevel, // Sending the number to the backend
           goalsSummary: goalsSummary
         })
       });
@@ -441,12 +474,47 @@ export function ManifestationBoard({ onBack, mode = "growth" }: any) {
   return (
     <ScrollView contentContainerStyle={{ paddingBottom: 100, paddingTop: 30 }}>
 
-      {/* ── Header banner ── */}
+      {/* ── Header banner with Interactive Risk Slider ── */}
       <View style={[styles.gradientCard, { backgroundColor:"#7c3aed", marginBottom:12 }]}>
         <Text style={{ fontWeight:"800", fontSize:24, color:"white" }}>Manifestation Board</Text>
-        <Text style={{ fontSize:13, color:"rgba(255,255,255,0.75)", marginTop:4 }}>
-          {goals.length} active goals · {mode === "growth" ? "📈 Growth" : "💰 Frugal"} mode
+        <Text style={{ fontSize:13, color:"rgba(255,255,255,0.75)", marginTop:4, marginBottom:16 }}>
+          {goals.length} active goals
         </Text>
+
+        {/* Custom Segmented Risk Slider */}
+        <View style={{ marginTop: 8 }}>
+          <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 8 }}>
+            <Text style={{ color: "white", fontSize: 13, fontWeight: "600" }}>Risk Tolerance</Text>
+            <Text style={{ color: "white", fontSize: 13, fontWeight: "800" }}>{riskLevel} / 10</Text>
+          </View>
+          
+          <View style={{ flexDirection: "row", gap: 4, height: 28 }}>
+            {[1,2,3,4,5,6,7,8,9,10].map(level => {
+              let color = "#10b981"; 
+              if (level > 3) color = "#f59e0b"; 
+              if (level > 7) color = "#ef4444"; 
+              
+              const isActive = level <= riskLevel;
+              return (
+                <TouchableOpacity
+                  key={level}
+                  onPress={() => setRiskLevel(level)}
+                  style={{ 
+                    flex: 1, 
+                    backgroundColor: isActive ? color : "rgba(255,255,255,0.15)", 
+                    borderRadius: 4,
+                  }}
+                  activeOpacity={0.8}
+                />
+              )
+            })}
+          </View>
+          
+          <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 8 }}>
+            <Text style={{ color: "rgba(255,255,255,0.6)", fontSize: 10, fontWeight: "800", letterSpacing: 0.5 }}>SAFE</Text>
+            <Text style={{ color: "rgba(255,255,255,0.6)", fontSize: 10, fontWeight: "800", letterSpacing: 0.5 }}>RISKY</Text>
+          </View>
+        </View>
       </View>
 
       {/* ── The Prophecy ── */}
@@ -456,7 +524,7 @@ export function ManifestationBoard({ onBack, mode = "growth" }: any) {
           <Text style={{ fontWeight:"800", fontSize:15, color:"#7c3aed" }}>The Prophecy</Text>
         </View>
         <Text style={{ fontSize:12, color:C.muted, marginBottom:12 }}>
-          Mystical AI-powered predictions based on your goals
+          Mystical AI predictions tailored to a Risk Level of {riskLevel}/10
         </Text>
 
         {prophecy ? (
@@ -515,7 +583,7 @@ export function ManifestationBoard({ onBack, mode = "growth" }: any) {
                 backgroundColor:`${col}11`, borderRadius:10, padding:10 }}
             >
               <Text style={{ fontSize:13, fontWeight:"700", color:col }}>
-                💡 How to achieve this
+                💡 {riskLevel >= 8 ? "High-Risk Strategy" : riskLevel <= 3 ? "Safe Strategy" : "Balanced Strategy"}
               </Text>
               <Text style={{ color:col, fontSize:13 }}>{isExpanded ? "▲" : "▼"}</Text>
             </TouchableOpacity>
@@ -1286,7 +1354,7 @@ export function Challenges({ onBack }: any) {
                 style={{
                   width: `${levelPct}%`,
                   height: 8,
-                  backgroundColor: "green",
+                  backgroundColor: "white",
                   borderRadius: 99,
                 }}
               />
