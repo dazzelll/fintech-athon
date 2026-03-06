@@ -1,11 +1,17 @@
 import os
 import copy
+import httpx
 from fastapi import FastAPI, Depends, Body, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from contextlib import asynccontextmanager
 from apscheduler.schedulers.background import BackgroundScheduler
 import stripe
+from dotenv import load_dotenv
+load_dotenv()
+
+import google.generativeai as genai
+
 from database import engine, get_db, Base
 import models
 from pydantic import BaseModel
@@ -237,3 +243,98 @@ async def get_villain_data(req: VillainRoastRequest):
         "caughtIn4K": ["you've ordered food delivery 23 times this month. we see you bestie 👀"],
         "history": []
     }
+
+class ProphecyRequest(BaseModel):
+    mode: str
+    goalsSummary: str
+@app.post("/api/manifestation/prophecy")
+async def get_manifestation_prophecy(req: ProphecyRequest):
+    """Endpoint for the Manifestation Board to get a Gemini prophecy"""
+    prophecy = await generate_gemini_prophecy(
+    mode=data.get('mode', 'growth'),
+    goals_summary=f"Projected wealth: ${projected:,} by {2026 + years + 5}, health score: 85"
+)
+    
+@app.post("/api/villain/roast")
+async def get_villain_roast():
+    """Always generates a snarky portfolio check based on current state"""
+    assets = copy.deepcopy(MOCK_ASSETS)
+    
+    # Apply sabotage if active so advice reflects real current state
+    if HACKATHON_SABOTAGE_MODE:
+        for a in assets:
+            if a['name'] == 'Savings': a['value'] = 15000
+            if a['name'] == 'Crypto':  a['value'] = 120000
+
+    roast = await generate_villain_roast(assets)
+    return {"success": True, "roast": roast}
+
+COINGECKO_API_KEY = os.getenv("COINGECKO_API_KEY")
+
+FALLBACK_DATA = [
+    {"name": "Bitcoin", "symbol": "BTC", "price": 85430.50, "color": "#f59e0b", "icon": "₿"},
+    {"name": "Ethereum", "symbol": "ETH", "price": 4200.75, "color": "#627eea", "icon": "⟠"},
+    {"name": "Solana", "symbol": "SOL", "price": 185.20, "color": "#14f195", "icon": "◎"},
+]
+
+@app.get("/api/crypto/live-prices")
+async def get_live_crypto_prices():
+    url = "https://api.coingecko.com/api/v3/simple/price"
+    params = {
+        "ids": "bitcoin,ethereum,solana",
+        "vs_currencies": "sgd",
+    }
+
+    headers = {}
+
+    if COINGECKO_API_KEY:
+        # Most CoinGecko keys use this header
+        headers["x-cg-api-key"] = COINGECKO_API_KEY
+    else:
+        print("COINGECKO_API_KEY NOT FOUND in env, using fallback only")
+
+    async with httpx.AsyncClient() as client:
+        try:
+            resp = await client.get(url, params=params, headers=headers, timeout=5.0)
+            print("CoinGecko raw response status:", resp.status_code)
+            print("CoinGecko raw body (first 300 chars):", resp.text[:300])
+
+            if resp.status_code != 200:
+                # Any non‑200 → use fallback
+                return {"success": True, "data": FALLBACK_DATA}
+
+            data = resp.json()
+            # Extra safety: make sure expected keys exist
+            if not all(k in data for k in ("bitcoin", "ethereum", "solana")):
+                print("Unexpected CoinGecko payload keys:", list(data.keys()))
+                return {"success": True, "data": FALLBACK_DATA}
+
+            return {
+                "success": True,
+                "data": [
+                    {
+                        "name": "Bitcoin",
+                        "symbol": "BTC",
+                        "price": float(data["bitcoin"]["sgd"]),
+                        "color": "#f59e0b",
+                        "icon": "₿",
+                    },
+                    {
+                        "name": "Ethereum",
+                        "symbol": "ETH",
+                        "price": float(data["ethereum"]["sgd"]),
+                        "color": "#627eea",
+                        "icon": "⟠",
+                    },
+                    {
+                        "name": "Solana",
+                        "symbol": "SOL",
+                        "price": float(data["solana"]["sgd"]),
+                        "color": "#14f195",
+                        "icon": "◎",
+                    },
+                ],
+            }
+        except Exception as e:
+            print("API Fetch Error (CoinGecko) EXCEPTION:", repr(e))
+            return {"success": True, "data": FALLBACK_DATA}

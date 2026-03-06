@@ -9,7 +9,7 @@ import {
   Linking,
 } from "react-native";
 import { C, ASSETS as FALLBACK_ASSETS, WEALTH_HISTORY, fmt } from "./constants";
-import { Card, Badge, ProgressBar, styles } from "./SharedUI";
+import { Card, Badge, ProgressBar, styles, CryptoLiveTicker } from "./SharedUI";
 import { LineChart, DonutChart } from "./Charts";
 import { BlobEcosystem } from "./BlobEcosystem";
 import { AssetDetailSheet } from "./AssetDetailSheet";
@@ -287,7 +287,7 @@ export function Dashboard({ onNavigate, mode }: any) {
           </View>
         )
       )}
-
+      <CryptoLiveTicker/>
       {/* Total Wealth */}
       <View style={[styles.gradientCard, { marginBottom: 12 }]}>
         <View style={styles.gradientCircle} />

@@ -1,7 +1,136 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
+import React, { useEffect, useState } from "react";
+import { View, Text, TouchableOpacity, StyleSheet, Platform, ActivityIndicator } from 'react-native';
 import { C } from './constants';
 import { Home, Target, Settings, ChevronLeft, Trophy, Skull } from 'lucide-react-native';
+
+export function CryptoLiveTicker() {
+  const [prices, setPrices] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [lastUpdated, setLastUpdated] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function fetchPrices() {
+      try {
+        // For Android emulator talking to your local FastAPI backend
+        const res = await fetch("http://10.0.2.2:8000/api/crypto/live-prices");
+        const json = await res.json();
+
+        if (json.success) {
+          setPrices(json.data);
+          const now = new Date();
+          setLastUpdated(
+            `${now.getHours()}:${String(now.getMinutes()).padStart(2, "0")}`
+          );
+        }
+      } catch (err) {
+        console.error("Failed to connect to Python backend:", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchPrices();
+    const interval = setInterval(fetchPrices, 30000); // refresh every 30s
+    return () => clearInterval(interval);
+  }, []);
+
+  if (loading && prices.length === 0) {
+    return (
+      <View
+        style={{
+          padding: 20,
+          backgroundColor: "#1e293b",
+          borderRadius: 16,
+          alignItems: "center",
+          marginBottom: 12,
+        }}
+      >
+        <ActivityIndicator size="small" color="#f59e0b" />
+      </View>
+    );
+  }
+
+  return (
+    <View
+      style={{
+        backgroundColor: "#1e293b",
+        padding: 16,
+        borderRadius: 16,
+        marginBottom: 12,
+      }}
+    >
+      <View
+        style={{
+          flexDirection: "row",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: 12,
+        }}
+      >
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+          <View
+            style={{
+              width: 8,
+              height: 8,
+              borderRadius: 4,
+              backgroundColor: "#10b981",
+            }}
+          />
+          <Text style={{ color: "white", fontWeight: "800", fontSize: 14 }}>
+            Live Crypto Markets
+          </Text>
+        </View>
+        <Text
+          style={{ color: "rgba(255,255,255,0.3)", fontSize: 9 }}
+        >{`updated ${lastUpdated ?? "--:--"}`}</Text>
+      </View>
+
+      <View style={{ flexDirection: "row", gap: 8 }}>
+        {prices.map((coin) => (
+          <View
+            key={coin.symbol}
+            style={{
+              flex: 1,
+              backgroundColor: "rgba(255,255,255,0.05)",
+              padding: 10,
+              borderRadius: 12,
+            }}
+          >
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 4,
+                marginBottom: 4,
+              }}
+            >
+              <Text style={{ color: coin.color, fontSize: 14 }}>
+                {coin.icon}
+              </Text>
+              <Text
+                style={{
+                  color: "rgba(255,255,255,0.7)",
+                  fontSize: 11,
+                  fontWeight: "700",
+                }}
+              >
+                {coin.symbol}
+              </Text>
+            </View>
+            <Text
+              style={{ color: "white", fontSize: 13, fontWeight: "800" }}
+            >
+              $
+              {coin.price >= 1000
+                ? (coin.price / 1000).toFixed(1) + "K"
+                : coin.price.toFixed(2)}
+            </Text>
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+}
 
 export function Card({ children, style={}, onPress }: any) {
   return (
