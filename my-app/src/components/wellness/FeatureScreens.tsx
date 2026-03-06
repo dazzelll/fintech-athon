@@ -635,9 +635,98 @@ export function ManifestationBoard({ onBack }: any) {
   );
 }
 
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
+
+// ─── RAINING BACKGROUND COMPONENT ──────────────────────────────────────────────
+const RainingBackground = () => {
+  const particles = useRef(
+    Array.from({ length: 25 }).map(() => ({
+      y: new Animated.Value(0),
+      x: Math.random() * SCREEN_WIDTH,
+      size: Math.random() * 16 + 10, // Random size between 10 and 26
+      duration: Math.random() * 5000 + 3000, // Random fall speed (3s to 8s)
+      delay: Math.random() * 4000, // Random start delay so they don't fall all at once
+      emoji: ["✨", "💰", "📈", "💎", "💸", "✦"][Math.floor(Math.random() * 6)],
+    }))
+  ).current;
+
+  useEffect(() => {
+    particles.forEach((p) => {
+      // Loop the falling animation infinitely
+      Animated.loop(
+        Animated.timing(p.y, {
+          toValue: 1,
+          duration: p.duration,
+          delay: p.delay,
+          useNativeDriver: true, // Super important for 60fps smooth falling!
+        })
+      ).start();
+    });
+  }, []);
+
+  return (
+    <View style={StyleSheet.absoluteFill} pointerEvents="none">
+      {particles.map((p, i) => (
+        <Animated.Text
+          key={i}
+          style={{
+            position: "absolute",
+            left: p.x,
+            top: -50, // Start slightly above the screen
+            fontSize: p.size,
+            opacity: 0.15, // Kept subtle so it doesn't distract from the main text
+            transform: [
+              {
+                translateY: p.y.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0, SCREEN_HEIGHT + 100], // Fall past the bottom
+                }),
+              },
+            ],
+          }}
+        >
+          {p.emoji}
+        </Animated.Text>
+      ))}
+    </View>
+  );
+};
+
 // ─── QUARTERLY WRAPPED ────────────────────────────────────────────────────────
 export function QuarterlyWrapped({ onBack }: any) {
   const [slide, setSlide] = useState(0);
+
+  // Setup Animation Values for the Text
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(50)).current;
+  const scaleAnim = useRef(new Animated.Value(0.5)).current;
+
+  // Trigger Text Animations whenever the slide changes
+  useEffect(() => {
+    fadeAnim.setValue(0);
+    slideAnim.setValue(40);
+    scaleAnim.setValue(0.8);
+
+    Animated.parallel([
+      Animated.timing(fadeAnim, { 
+        toValue: 1, 
+        duration: 500, 
+        useNativeDriver: true 
+      }),
+      Animated.spring(slideAnim, { 
+        toValue: 0, 
+        friction: 8, 
+        tension: 50, 
+        useNativeDriver: true 
+      }),
+      Animated.spring(scaleAnim, { 
+        toValue: 1, 
+        friction: 5, 
+        tension: 60, 
+        useNativeDriver: true 
+      })
+    ]).start();
+  }, [slide]);
 
   const slides = [
     {
@@ -667,19 +756,18 @@ export function QuarterlyWrapped({ onBack }: any) {
       sub: "On track for all of them",
       stat: "Keep going!",
     },
-    { bg: "wealth-age" }, // wealth age slide
+    { bg: "wealth-age" }, 
   ];
 
   const s = slides[slide];
   const isWealthAge = (s as any).bg === "wealth-age";
 
   return (
-    <View
-      style={{
-        flex: 1,
-        backgroundColor: isWealthAge ? "#1e3a8a" : (s as any).bg,
-      }}
-    >
+    <View style={{ flex: 1, backgroundColor: isWealthAge ? "#1e3a8a" : (s as any).bg }}>
+      
+      {/* 1. THE RAINING BACKGROUND EFFECT */}
+      <RainingBackground />
+
       {/* Close button */}
       <TouchableOpacity
         onPress={onBack}
@@ -696,111 +784,62 @@ export function QuarterlyWrapped({ onBack }: any) {
           justifyContent: "center",
         }}
       >
-        <Text style={{ color: "white", fontSize: 18, fontWeight: "600" }}>
-          ✕
-        </Text>
+        <Text style={{ color: "white", fontSize: 18, fontWeight: "600" }}>✕</Text>
       </TouchableOpacity>
 
-      {/* Slide content */}
-      <View
+      {/* Slide content wrapped in Animated.View */}
+      <Animated.View
         style={{
           flex: 1,
           alignItems: "center",
           justifyContent: "center",
           paddingHorizontal: 32,
+          opacity: fadeAnim,
+          transform: [{ translateY: slideAnim }]
         }}
       >
         {isWealthAge ? (
-          // ── Wealth Age slide ──
           <View style={{ alignItems: "center", width: "100%" }}>
-            <Text
+            <Animated.Text
               style={{
                 fontSize: 80,
                 fontWeight: "900",
                 color: "white",
                 letterSpacing: -4,
+                transform: [{ scale: scaleAnim }]
               }}
             >
               42
-            </Text>
-            <Text
-              style={{
-                fontSize: 20,
-                color: "rgba(255,255,255,0.75)",
-                marginBottom: 8,
-              }}
-            >
+            </Animated.Text>
+            
+            <Text style={{ fontSize: 20, color: "rgba(255,255,255,0.75)", marginBottom: 8 }}>
               Your Wealth Age
             </Text>
-            <View
-              style={{
-                marginVertical: 20,
-                height: 1,
-                backgroundColor: "rgba(255,255,255,0.2)",
-                width: "80%",
-              }}
-            />
-            <Text
-              style={{
-                fontSize: 16,
-                color: "rgba(255,255,255,0.7)",
-                marginBottom: 32,
-              }}
-            >
-              Real Age:{" "}
-              <Text style={{ color: "white", fontWeight: "700" }}>35</Text> · 7
-              years ahead 🚀
+            <View style={{ marginVertical: 20, height: 1, backgroundColor: "rgba(255,255,255,0.2)", width: "80%" }} />
+            <Text style={{ fontSize: 16, color: "rgba(255,255,255,0.7)", marginBottom: 32 }}>
+              Real Age: <Text style={{ color: "white", fontWeight: "700" }}>35</Text> · 7 years ahead 🚀
             </Text>
-            {(
-              [
-                [
-                  "🏦",
-                  "Exceptional savings rate",
-                  "Saving at a rate typical of someone aged 42",
-                ],
-                [
-                  "📈",
-                  "Investment returns ahead of curve",
-                  "Portfolio beats most peers your age",
-                ],
-                [
-                  "🛡️",
-                  "Strong risk management",
-                  "Behavioral maturity shows in your decisions",
-                ],
-              ] as any[]
-            ).map(([e, t, sub], i) => (
-              <View
-                key={i}
-                style={{
-                  flexDirection: "row",
-                  gap: 14,
-                  marginBottom: 18,
-                  width: "100%",
-                }}
-              >
+            
+            {([ 
+              ["🏦", "Exceptional savings rate", "Saving at a rate typical of someone aged 42"],
+              ["📈", "Investment returns ahead of curve", "Portfolio beats most peers your age"],
+              ["🛡️", "Strong risk management", "Behavioral maturity shows in your decisions"],
+            ] as any[]).map(([e, t, sub], i) => (
+              <View key={i} style={{ flexDirection: "row", gap: 14, marginBottom: 18, width: "100%" }}>
                 <Text style={{ fontSize: 26 }}>{e}</Text>
                 <View style={{ flex: 1 }}>
-                  <Text
-                    style={{ fontSize: 15, fontWeight: "700", color: "white" }}
-                  >
-                    {t}
-                  </Text>
-                  <Text
-                    style={{ fontSize: 13, color: "rgba(255,255,255,0.65)" }}
-                  >
-                    {sub}
-                  </Text>
+                  <Text style={{ fontSize: 15, fontWeight: "700", color: "white" }}>{t}</Text>
+                  <Text style={{ fontSize: 13, color: "rgba(255,255,255,0.65)" }}>{sub}</Text>
                 </View>
               </View>
             ))}
           </View>
         ) : (
-          // ── Regular slides ──
           <View style={{ alignItems: "center" }}>
-            <Text style={{ fontSize: 72, marginBottom: 24 }}>
+            <Animated.Text style={{ fontSize: 72, marginBottom: 24, transform: [{ scale: scaleAnim }] }}>
               {(s as any).emoji}
-            </Text>
+            </Animated.Text>
+
             <Text
               style={{
                 fontSize: 42,
@@ -832,26 +871,17 @@ export function QuarterlyWrapped({ onBack }: any) {
                   paddingHorizontal: 24,
                 }}
               >
-                <Text
-                  style={{ fontSize: 18, fontWeight: "700", color: "white" }}
-                >
+                <Text style={{ fontSize: 18, fontWeight: "700", color: "white" }}>
                   {(s as any).stat}
                 </Text>
               </View>
             )}
           </View>
         )}
-      </View>
+      </Animated.View>
 
       {/* Dot indicators */}
-      <View
-        style={{
-          flexDirection: "row",
-          gap: 8,
-          justifyContent: "center",
-          marginBottom: 20,
-        }}
-      >
+      <View style={{ flexDirection: "row", gap: 8, justifyContent: "center", marginBottom: 20 }}>
         {slides.map((_, i) => (
           <TouchableOpacity
             key={i}
@@ -867,14 +897,7 @@ export function QuarterlyWrapped({ onBack }: any) {
       </View>
 
       {/* Prev / Next */}
-      <View
-        style={{
-          flexDirection: "row",
-          gap: 10,
-          paddingHorizontal: 20,
-          paddingBottom: 48,
-        }}
-      >
+      <View style={{ flexDirection: "row", gap: 10, paddingHorizontal: 20, paddingBottom: 48 }}>
         <TouchableOpacity
           onPress={() => setSlide(Math.max(0, slide - 1))}
           disabled={slide === 0}
@@ -887,14 +910,10 @@ export function QuarterlyWrapped({ onBack }: any) {
             opacity: slide === 0 ? 0.4 : 1,
           }}
         >
-          <Text style={{ color: "white", fontSize: 15, fontWeight: "600" }}>
-            ← Prev
-          </Text>
+          <Text style={{ color: "white", fontSize: 15, fontWeight: "600" }}>← Prev</Text>
         </TouchableOpacity>
         <TouchableOpacity
-          onPress={() =>
-            slide === slides.length - 1 ? onBack() : setSlide(slide + 1)
-          }
+          onPress={() => slide === slides.length - 1 ? onBack() : setSlide(slide + 1)}
           style={{
             flex: 2,
             padding: 14,
@@ -1778,49 +1797,6 @@ export function Menu({ mode, onModeToggle, onNavigate }: any) {
               blobby@gmail.com
             </Text>
           </View>
-        </View>
-      </Card>
-      <Card style={{ marginBottom: 12 }}>
-        <Text
-          style={{
-            fontWeight: "700",
-            fontSize: 12,
-            color: C.muted,
-            marginBottom: 12,
-            textTransform: "uppercase",
-            letterSpacing: 0.8,
-          }}
-        >
-          Mode
-        </Text>
-        <View
-          style={{
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: "space-between",
-          }}
-        >
-          <View>
-            <Text style={{ fontWeight: "700", fontSize: 15, color: C.text }}>
-              {mode === "growth" ? "📈 Growth Mode" : "💰 Frugal Mode"}
-            </Text>
-            <Text style={{ fontSize: 12, color: C.muted }}>
-              {mode === "growth" ? "Maximize returns" : "Minimize spending"}
-            </Text>
-          </View>
-          <TouchableOpacity
-            onPress={onModeToggle}
-            style={{
-              backgroundColor: mode === "growth" ? C.accent : "#8b5cf6",
-              borderRadius: 99,
-              paddingVertical: 8,
-              paddingHorizontal: 18,
-            }}
-          >
-            <Text style={{ color: "white", fontWeight: "700", fontSize: 13 }}>
-              Switch
-            </Text>
-          </TouchableOpacity>
         </View>
       </Card>
       <Card style={{ marginBottom: 12 }}>

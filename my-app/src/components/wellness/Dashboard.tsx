@@ -164,9 +164,6 @@ export function Dashboard({ onNavigate, mode }: any) {
             Your financial health at a glance
           </Text>
         </View>
-        <Badge color={mode === "growth" ? C.accent : "#8b5cf6"}>
-          {mode === "growth" ? "📈 Growth" : "💰 Frugal"}
-        </Badge>
       </View>
 
       {/* Blob Ecosystem */}
