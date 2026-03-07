@@ -12,6 +12,7 @@ import { Card, Badge, ProgressBar, BackBtn, styles } from "./SharedUI";
 import { BlobEcosystem } from "./BlobEcosystem";
 import {HandCoins, Lightbulb, PiggyBank, PiggyBankIcon} from 'lucide-react-native'
 import { Icon } from "expo-router";
+import { API_BASE_URL } from "../../lib/api";
 
 // ─── WEALTH BLOB ──────────────────────────────────────────────────────────────
 export function WealthBlob({ onBack }: any) {
@@ -21,7 +22,7 @@ export function WealthBlob({ onBack }: any) {
   useEffect(() => {
     const load = async () => {
       try {
-        const res = await fetch("http://10.0.2.2:8000/api/portfolio/sandbox");
+        const res = await fetch(`${API_BASE_URL}/portfolio/sandbox`);
         const data = await res.json();
         if (data.assets && Array.isArray(data.assets)) {
           setAssets(data.assets);
@@ -477,10 +478,8 @@ export function ManifestationBoard({ onBack }: any) {
       const goalsSummary = goals.map(g =>
         `${g.emoji} ${g.title}: $${g.current.toLocaleString()} of $${g.target.toLocaleString()} by ${g.deadline}`
       ).join(", ");
-  
-      const BACKEND_URL = "http://10.0.2.2:8000/api/manifestation/prophecy";
-  
-      const res = await fetch(BACKEND_URL, {
+
+      const res = await fetch(`${API_BASE_URL}/manifestation/prophecy`, {
         method: "POST",
         headers: {
           "Accept": "application/json", 
@@ -1632,14 +1631,12 @@ export function VillainArc({ onBack, riskLevel }: any) {
   const [loading, setLoading]       = useState(false);
   const [caughtIn4K, setCaughtIn4K] = useState<string[]>([]);
 
-  const BACKEND = "http://10.0.2.2:8000";
-
   // Shared helper — used by both useEffect and the manual button
   // FIX 1: riskLevel goes in the JSON body, not as a query param
   // FIX 2: populate BOTH alerts (for the banner) and roast (for the advisor card)
   const fetchVillainData = async (level: number = riskLevel ?? 5) => {
     try {
-      const res = await fetch(`${BACKEND}/api/villain/roast`, {
+      const res = await fetch(`${API_BASE_URL}/villain/roast`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ riskLevel: level }),

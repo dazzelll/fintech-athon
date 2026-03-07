@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, Platform, ActivityIndicator } from 'react-native';
 import { C } from './constants';
 import { Home, Target, Settings, ChevronLeft, Trophy, Skull } from 'lucide-react-native';
+import { API_BASE_URL } from "../../lib/api";
 
 
 export function StockLiveTicker() {
@@ -12,8 +13,7 @@ export function StockLiveTicker() {
   useEffect(() => {
     async function fetchPrices() {
       try {
-        // Android emulator -> local backend
-        const res = await fetch("http://10.0.2.2:8000/api/stocks/live-prices");
+        const res = await fetch(`${API_BASE_URL}/stocks/live-prices`);
         const json = await res.json();
 
         if (json.success) {
@@ -138,8 +138,7 @@ export function CryptoLiveTicker() {
   useEffect(() => {
     async function fetchPrices() {
       try {
-        // For Android emulator talking to your local FastAPI backend
-        const res = await fetch("http://10.0.2.2:8000/api/crypto/live-prices");
+        const res = await fetch(`${API_BASE_URL}/crypto/live-prices`);
         const json = await res.json();
 
         if (json.success) {

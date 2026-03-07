@@ -14,8 +14,7 @@ import { LineChart, DonutChart } from "./Charts";
 import { BlobEcosystem } from "./BlobEcosystem";
 import { AssetDetailSheet } from "./AssetDetailSheet";
 import { Gift, Zap, Bitcoin, PiggyBank, Home, ChartLine, ScrollText, TrendingUp  } from "lucide-react-native";
-
-const BASE_URL = "http://10.0.2.2:8000/api";
+import { API_BASE_URL } from "../../lib/api";
 
 export function Dashboard({ onNavigate, mode }: any) {
   const [selAsset, setSelAsset] = useState<any>(null);
@@ -40,7 +39,7 @@ export function Dashboard({ onNavigate, mode }: any) {
 
   // Reusable function to fetch the latest portfolio data
   const fetchPortfolio = () => {
-    fetch(`${BASE_URL}/portfolio`)
+    fetch(`${API_BASE_URL}/portfolio`)
       .then((res) => res.json())
       .then((data) => {
         console.log("✅ Live data fetched. Total:", data.total);
@@ -54,7 +53,7 @@ export function Dashboard({ onNavigate, mode }: any) {
   // FIX 1: Correct route is /api/villain/roast (not /api/villain)
   // FIX 2: Must be POST with a JSON body so riskLevel reaches the backend
   const fetchVillainData = (riskLevel: number = 5) => {
-    fetch(`${BASE_URL}/villain/roast`, {
+    fetch(`${API_BASE_URL}/villain/roast`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ riskLevel }),
@@ -73,7 +72,7 @@ export function Dashboard({ onNavigate, mode }: any) {
 
   // THE STEALTH TRIGGER: Ruins data for the demo pitch
   const handleSecretSabotage = () => {
-    fetch(`${BASE_URL}/demo/sabotage`, { method: "POST" })
+    fetch(`${API_BASE_URL}/demo/sabotage`, { method: "POST" })
       .then(() => {
         setIsConnected(true);
         fetchPortfolio();
@@ -102,7 +101,7 @@ export function Dashboard({ onNavigate, mode }: any) {
   const handleTopUp = async () => {
     setIsConnectingStripe(true);
     try {
-      const res = await fetch(`${BASE_URL}/portfolio/stripe/top-up`, {
+      const res = await fetch(`${API_BASE_URL}/portfolio/stripe/top-up`, {
         method: "POST",
       });
       const data = await res.json();
@@ -112,7 +111,7 @@ export function Dashboard({ onNavigate, mode }: any) {
         Linking.openURL(data.url);
 
         setTimeout(async () => {
-          await fetch(`${BASE_URL}/portfolio/stripe/confirm`, {
+          await fetch(`${API_BASE_URL}/portfolio/stripe/confirm`, {
             method: "POST",
           });
           fetchPortfolio();
