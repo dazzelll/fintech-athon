@@ -39,7 +39,7 @@ export function Dashboard({ onNavigate, mode }: any) {
 
   // Use sandbox (Alpaca + supplemental) so numbers reflect real/live data, not static mock
   const fetchPortfolio = () => {
-    fetch(`${BASE_URL}/portfolio/sandbox`)
+    fetch(`${API_BASE_URL}/portfolio/sandbox`)
       .then((res) => res.json())
       .then((data) => {
         console.log("✅ Live data fetched. Total:", data.total);
