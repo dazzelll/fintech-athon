@@ -52,11 +52,11 @@ MAX_SAVINGS_SPEND = 20000.0
 
 # --- MOCK FALLBACK DATA ---
 MOCK_ASSETS = [
-    {"name": "Stocks", "value": 185000, "pct": 38, "color": "#3b82f6", "emoji": "📈"},
-    {"name": "Real Estate", "value": 150000, "pct": 31, "color": "#10b981", "emoji": "🏠"},
-    {"name": "Savings", "value": 75000, "pct": 15, "color": "#8b5cf6", "emoji": "💰"},
-    {"name": "Crypto", "value": 45000, "pct": 9, "color": "#f59e0b", "emoji": "₿"},
-    {"name": "Bonds", "value": 32500, "pct": 7, "color": "#ec4899", "emoji": "📜"}
+    {"name": "Stocks",               "value": 185000, "pct": 38, "color": "#3b82f6", "emoji": "📈"},
+    {"name": "Real Estate & Others", "value": 150000, "pct": 31, "color": "#10b981", "emoji": "🏠"},
+    {"name": "Savings",              "value": 75000,  "pct": 15, "color": "#8b5cf6", "emoji": "💰"},
+    {"name": "Crypto",               "value": 45000,  "pct": 9,  "color": "#f59e0b", "emoji": "₿"},
+    {"name": "Bonds",                "value": 32500,  "pct": 7,  "color": "#ec4899", "emoji": "📜"}
 ]
 
 ALPHAVANTAGE_API_KEY = os.getenv("ALPHAVANTAGE_API_KEY")
@@ -207,6 +207,59 @@ async def set_spend_threshold(req: SpendThresholdRequest):
     return {"success": True, "max_savings_spend": MAX_SAVINGS_SPEND}
 
 
+class ManualAssetCreate(BaseModel):
+    category: str
+    label: str
+    amount: float
+
+
+@app.post("/api/manual-assets/log")
+async def log_manual_asset(entry: ManualAssetCreate, db: Session = Depends(get_db)):
+    """
+    Create a manual asset log entry (for Real Estate & Others, side hustles, collectibles, etc.).
+    For hackathon/demo, we don't attach this to an authenticated user yet.
+    """
+    log = models.ManualAssetLog(
+        user_id=None,
+        category=entry.category,
+        label=entry.label,
+        amount=entry.amount,
+    )
+    db.add(log)
+    db.commit()
+    db.refresh(log)
+    return {
+        "id": log.id,
+        "category": log.category,
+        "label": log.label,
+        "amount": float(log.amount or 0),
+        "created_at": log.created_at.isoformat() if log.created_at else None,
+    }
+
+
+@app.get("/api/manual-assets/logs")
+async def list_manual_assets(db: Session = Depends(get_db)):
+    """
+    Return recent manual asset entries, newest first.
+    """
+    rows = (
+        db.query(models.ManualAssetLog)
+        .order_by(models.ManualAssetLog.created_at.desc())
+        .limit(50)
+        .all()
+    )
+    return [
+        {
+            "id": r.id,
+            "category": r.category,
+            "label": r.label,
+            "amount": float(r.amount or 0),
+            "created_at": r.created_at.isoformat() if r.created_at else None,
+        }
+        for r in rows
+    ]
+
+
 def _get_supplemental_assets() -> list[dict]:
     """Optional non-Alpaca wealth (Real Estate, Crypto, Bonds). Set in .env or 0."""
     def _float_env(name: str, default: float = 0.0) -> float:
@@ -216,9 +269,9 @@ def _get_supplemental_assets() -> list[dict]:
             return default
 
     return [
-        {"name": "Real Estate", "value": _float_env("SUPPLEMENTAL_REAL_ESTATE", 0), "pct": 0, "color": "#10b981", "emoji": "🏠", "mood": "neutral"},
-        {"name": "Crypto", "value": _float_env("SUPPLEMENTAL_CRYPTO", 0), "pct": 0, "color": "#f59e0b", "emoji": "₿", "mood": "neutral"},
-        {"name": "Bonds", "value": _float_env("SUPPLEMENTAL_BONDS", 0), "pct": 0, "color": "#ec4899", "emoji": "📜", "mood": "neutral"},
+        {"name": "Real Estate & Others", "value": _float_env("SUPPLEMENTAL_REAL_ESTATE", 0), "pct": 0, "color": "#10b981", "emoji": "🏠", "mood": "neutral"},
+        {"name": "Crypto",               "value": _float_env("SUPPLEMENTAL_CRYPTO", 0),      "pct": 0, "color": "#f59e0b", "emoji": "₿",  "mood": "neutral"},
+        {"name": "Bonds",                "value": _float_env("SUPPLEMENTAL_BONDS", 0),       "pct": 0, "color": "#ec4899", "emoji": "📜", "mood": "neutral"},
     ]
 
 

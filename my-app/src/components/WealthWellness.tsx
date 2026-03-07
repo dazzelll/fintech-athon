@@ -4,8 +4,16 @@ import { C } from "./wellness/constants";
 import { BottomNav } from "./wellness/SharedUI";
 import { Dashboard } from "./wellness/Dashboard";
 import { 
-  WealthBlob, EventSimulator, ManifestationBoard, QuarterlyWrapped, 
-  WealthAge, Streaks, Challenges, VillainArc, Menu 
+  WealthBlob,
+  EventSimulator,
+  ManifestationBoard,
+  QuarterlyWrapped,
+  WealthAge,
+  Streaks,
+  Challenges,
+  VillainArc,
+  ManualAssets,
+  Menu,
 } from "./wellness/FeatureScreens";
 
 const BACKEND = "http://10.0.2.2:8000";
@@ -126,6 +134,7 @@ export default function WealthWellness() {
     streaks: <Streaks onBack={back} />,
     challenges: <Challenges onBack={back} />,
     "villain-arc": <VillainArc onBack={back} riskLevel={riskLevel} />,
+    "manual-assets": <ManualAssets onBack={back} />,
     menu: <Menu mode={mode} onModeToggle={() => setMode((m: string) => m === "growth" ? "frugal" : "growth")} onNavigate={nav} />,
   };
 

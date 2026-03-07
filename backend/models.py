@@ -87,3 +87,12 @@ class Challenge(Base):
     completed = Column(Boolean, default=False)
     expires_at = Column(DateTime)
     created_at = Column(DateTime, default=func.now())
+
+class ManualAssetLog(Base):
+    __tablename__ = "manual_asset_logs"
+    id = Column(String, primary_key=True, default=generate_uuid)
+    user_id = Column(String, ForeignKey("users.id"), nullable=True)
+    category = Column(String)
+    label = Column(String)
+    amount = Column(Numeric(15, 2))
+    created_at = Column(DateTime, default=func.now())

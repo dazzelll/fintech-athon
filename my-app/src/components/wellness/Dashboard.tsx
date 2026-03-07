@@ -30,11 +30,11 @@ export function Dashboard({ onNavigate, mode }: any) {
   const [villainAlert, setVillainAlert] = useState<any>(null);
 
   const assetIcons: Record<string, any> = {
-    "Stocks":       TrendingUp,
-    "Real Estate":  Home,
-    "Savings":      PiggyBank,
-    "Crypto":       Bitcoin,
-    "Bonds":        ScrollText,
+    "Stocks":               TrendingUp,
+    "Real Estate & Others": Home,
+    "Savings":              PiggyBank,
+    "Crypto":               Bitcoin,
+    "Bonds":                ScrollText,
   };
 
   // Use sandbox (Alpaca + supplemental) so numbers reflect real/live data, not static mock

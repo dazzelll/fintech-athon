@@ -19,7 +19,7 @@ const ASSET_META: Record<string, {
     diversification: 85,
     liquidity: 95,
   },
-  "Real Estate": {
+  "Real Estate & Others": {
     subtitle: "Property & REITs",
     description: "A mix of physical real estate and REITs providing income, appreciation, and an inflation hedge over the long term.",
     diversification: 60,
@@ -52,7 +52,7 @@ const ASSET_HOLDINGS: Record<string, { ticker: string; name: string; value: numb
     { ticker: "VOO",  name: "Vanguard S&P 500",  value: 75000, change:  1.8 },
     { ticker: "MSFT", name: "Microsoft",         value: 27000, change:  3.1 },
   ],
-  "Real Estate": [
+  "Real Estate & Others": [
     { ticker: "O",    name: "Realty Income",     value: 20000, change:  0.4 },
     { ticker: "VNQ",  name: "Vanguard REIT ETF", value: 80000, change:  1.1 },
     { ticker: "PHYS", name: "Physical Property", value: 50000, change:  0.2 },
@@ -73,7 +73,7 @@ const ASSET_HOLDINGS: Record<string, { ticker: string; name: string; value: numb
 
 const ASSET_HISTORY: Record<string, { m: string; v: number }[]> = {
   Stocks:        [{ m:"Oct",v:155000},{m:"Nov",v:162000},{m:"Dec",v:168000},{m:"Jan",v:171000},{m:"Feb",v:178000},{m:"Mar",v:185000}],
-  "Real Estate": [{ m:"Oct",v:138000},{m:"Nov",v:141000},{m:"Dec",v:144000},{m:"Jan",v:146000},{m:"Feb",v:148000},{m:"Mar",v:150000}],
+  "Real Estate & Others": [{ m:"Oct",v:138000},{m:"Nov",v:141000},{m:"Dec",v:144000},{m:"Jan",v:146000},{m:"Feb",v:148000},{m:"Mar",v:150000}],
   Savings:       [{ m:"Oct",v:72000}, {m:"Nov",v:72800}, {m:"Dec",v:73500}, {m:"Jan",v:74000}, {m:"Feb",v:74600}, {m:"Mar",v:75000}],
   Crypto:        [{ m:"Oct",v:28000}, {m:"Nov",v:35000}, {m:"Dec",v:52000}, {m:"Jan",v:48000}, {m:"Feb",v:41000}, {m:"Mar",v:45000}],
   Bonds:         [{ m:"Oct",v:31000}, {m:"Nov",v:31200}, {m:"Dec",v:31500}, {m:"Jan",v:31800}, {m:"Feb",v:32100}, {m:"Mar",v:32500}],
@@ -145,11 +145,11 @@ function HistoryChart({ data, color }: { data: { m: string; v: number }[]; color
 export function AssetDetailSheet({ asset, onClose }: any) {
   type Holding = { ticker: string; name: string; value: number; change: number };
   const assetIcons: Record<string, any> = {
-    "Stocks":       TrendingUp,
-    "Real Estate":  Home,
-    "Savings":      PiggyBank,
-    "Crypto":       Bitcoin,
-    "Bonds":        ScrollText,
+    "Stocks":               TrendingUp,
+    "Real Estate & Others": Home,
+    "Savings":              PiggyBank,
+    "Crypto":               Bitcoin,
+    "Bonds":                ScrollText,
   };
   const Icon = assetIcons[asset.name] ?? TrendingUp;
   const meta = ASSET_META[asset.name] ?? {

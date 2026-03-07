@@ -13,11 +13,11 @@ export const C = {
   };
   
   export const ASSETS = [
-    { name:"Stocks",      value:185000, pct:38, color:"#3b82f6", emoji:"📈", mood:"happy",   day:0.8,  week:2.3,  month:5.2,  year:18.4, risk:72 },
-    { name:"Real Estate", value:150000, pct:31, color:"#10b981", emoji:"🏠", mood:"happy",   day:0.1,  week:0.4,  month:2.1,  year:8.7,  risk:45 },
-    { name:"Savings",     value:75000,  pct:15, color:"#8b5cf6", emoji:"💰", mood:"happy",   day:0.01, week:0.05, month:0.4,  year:4.5,  risk:5  },
-    { name:"Crypto",      value:45000,  pct:9,  color:"#f59e0b", emoji:"₿",  mood:"worried", day:-2.3, week:-5.8, month:-8.2, year:45.6, risk:95 },
-    { name:"Bonds",       value:32500,  pct:7,  color:"#ec4899", emoji:"📜", mood:"neutral", day:0.02, week:0.1,  month:0.8,  year:5.2,  risk:25 },
+    { name:"Stocks",               value:185000, pct:38, color:"#3b82f6", emoji:"📈", mood:"happy",   day:0.8,  week:2.3,  month:5.2,  year:18.4, risk:72 },
+    { name:"Real Estate & Others", value:150000, pct:31, color:"#10b981", emoji:"🏠", mood:"happy",   day:0.1,  week:0.4,  month:2.1,  year:8.7,  risk:45 },
+    { name:"Savings",              value:75000,  pct:15, color:"#8b5cf6", emoji:"💰", mood:"happy",   day:0.01, week:0.05, month:0.4,  year:4.5,  risk:5  },
+    { name:"Crypto",               value:45000,  pct:9,  color:"#f59e0b", emoji:"₿",  mood:"worried", day:-2.3, week:-5.8, month:-8.2, year:45.6, risk:95 },
+    { name:"Bonds",                value:32500,  pct:7,  color:"#ec4899", emoji:"📜", mood:"neutral", day:0.02, week:0.1,  month:0.8,  year:5.2,  risk:25 },
   ];
   
   export const WEALTH_HISTORY = [

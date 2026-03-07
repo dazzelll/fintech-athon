@@ -1238,6 +1238,287 @@ export function Streaks({ onBack }: any) {
   );
 }
 
+
+// ─── MANUAL ASSETS ─────────────────────────────────────────────────────────────
+export function ManualAssets({ onBack }: any) {
+  const [category, setCategory] = useState<string>("Real Estate & Others");
+  const [label, setLabel] = useState<string>("");
+  const [amount, setAmount] = useState<string>("");
+  const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [entries, setEntries] = useState<any[]>([]);
+
+  const categories = [
+    "Real Estate & Others",
+    "Stocks",
+    "Savings",
+    "Crypto",
+    "Bonds",
+  ];
+
+  const loadEntries = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch(`${API_BASE_URL}/manual-assets/logs`);
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        setEntries(data);
+      } else if (Array.isArray(data.items)) {
+        setEntries(data.items);
+      }
+    } catch (e) {
+      console.log("manual assets fetch failed", e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadEntries();
+  }, []);
+
+  const addEntry = async () => {
+    const numeric = parseFloat(amount.replace(/[^0-9.]/g, "")) || 0;
+    if (!label || !numeric) return;
+    setSaving(true);
+    try {
+      await fetch(`${API_BASE_URL}/manual-assets/log`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          category,
+          label,
+          amount: numeric,
+        }),
+      });
+      setLabel("");
+      setAmount("");
+      await loadEntries();
+    } catch (e) {
+      console.log("manual asset save failed", e);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <ScrollView contentContainerStyle={{ paddingBottom: 100, paddingTop: 30 }}>
+      <BackBtn
+        onBack={onBack}
+        title="Manual Assets"
+        subtitle="Real estate & other wealth you track yourself"
+      />
+
+      <Card style={{ marginBottom: 12 }}>
+        <Text
+          style={{
+            fontWeight: "700",
+            fontSize: 16,
+            color: C.text,
+            marginBottom: 10,
+          }}
+        >
+          Add to your assets
+        </Text>
+        <Text
+          style={{
+            fontSize: 12,
+            color: C.muted,
+            marginBottom: 14,
+          }}
+        >
+          Log properties, side hustles, private investments, or collectibles so your blobs see the full picture.
+        </Text>
+
+        <Text
+          style={{
+            fontSize: 12,
+            color: C.muted,
+            marginBottom: 6,
+          }}
+        >
+          Category
+        </Text>
+        <View
+          style={{
+            flexDirection: "row",
+            flexWrap: "wrap",
+            gap: 8,
+            marginBottom: 12,
+          }}
+        >
+          {categories.map((cat) => {
+            const active = cat === category;
+            return (
+              <TouchableOpacity
+                key={cat}
+                onPress={() => setCategory(cat)}
+                activeOpacity={0.75}
+                style={{
+                  paddingVertical: 8,
+                  paddingHorizontal: 12,
+                  borderRadius: 12,
+                  borderWidth: 1,
+                  borderColor: active ? C.accent : C.cardBorder,
+                  backgroundColor: active ? `${C.accent}12` : "rgba(0,0,0,0.02)",
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 12,
+                    color: active ? C.accent : C.muted,
+                    fontWeight: active ? "700" : "500",
+                  }}
+                >
+                  {cat}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
+        <TextInput
+          value={label}
+          onChangeText={setLabel}
+          placeholder="What is this asset? (e.g. HDB flat, Etsy store, Angel check)"
+          placeholderTextColor={C.muted}
+          style={[styles.input, { marginBottom: 8 }]}
+        />
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            backgroundColor: "rgba(0,0,0,0.04)",
+            borderColor: C.cardBorder,
+            borderWidth: 1,
+            borderRadius: 12,
+            paddingHorizontal: 12,
+            marginBottom: 12,
+          }}
+        >
+          <Text style={{ color: C.muted, fontSize: 14, marginRight: 4 }}>$</Text>
+          <TextInput
+            value={amount}
+            onChangeText={(txt) => setAmount(txt.replace(/[^0-9.]/g, ""))}
+            keyboardType="numeric"
+            placeholder="Estimated value"
+            placeholderTextColor={C.muted}
+            style={{
+              flex: 1,
+              fontSize: 15,
+              fontWeight: "700",
+              color: C.text,
+              paddingVertical: 10,
+            }}
+          />
+        </View>
+        <TouchableOpacity
+          onPress={addEntry}
+          disabled={saving}
+          style={[
+            styles.primaryButton,
+            {
+              backgroundColor: saving ? "rgba(0,0,0,0.15)" : C.accent,
+            },
+          ]}
+        >
+          <Text style={styles.primaryButtonText}>
+            {saving ? "Saving..." : "Add to assets"}
+          </Text>
+        </TouchableOpacity>
+      </Card>
+
+      <Card>
+        <Text
+          style={{
+            fontWeight: "700",
+            fontSize: 16,
+            color: C.text,
+            marginBottom: 10,
+          }}
+        >
+          Manual asset history
+        </Text>
+        {loading ? (
+          <View
+            style={{
+              paddingVertical: 18,
+              alignItems: "center",
+            }}
+          >
+            <ActivityIndicator />
+          </View>
+        ) : entries.length === 0 ? (
+          <Text
+            style={{
+              fontSize: 12,
+              color: C.muted,
+            }}
+          >
+            Nothing logged yet. Start by adding your first property, side hustle, or other wealth item.
+          </Text>
+        ) : (
+          entries.map((e, idx) => {
+            const dt = e.created_at ? new Date(e.created_at) : null;
+            const dateStr = dt
+              ? dt.toLocaleDateString(undefined, {
+                  month: "short",
+                  day: "numeric",
+                  year: "numeric",
+                })
+              : "";
+            return (
+              <View
+                key={e.id || idx}
+                style={{
+                  paddingVertical: 10,
+                  borderTopWidth: idx === 0 ? 0 : 1,
+                  borderColor: "rgba(0,0,0,0.06)",
+                  flexDirection: "row",
+                  justifyContent: "space-between",
+                  alignItems: "flex-start",
+                  gap: 12,
+                }}
+              >
+                <View style={{ flex: 1 }}>
+                  <Text
+                    style={{
+                      fontSize: 13,
+                      fontWeight: "700",
+                      color: C.text,
+                    }}
+                  >
+                    {e.label}
+                  </Text>
+                  <Text
+                    style={{
+                      fontSize: 11,
+                      color: C.muted,
+                      marginTop: 2,
+                    }}
+                  >
+                    {e.category}
+                    {dateStr ? ` · ${dateStr}` : ""}
+                  </Text>
+                </View>
+                <Text
+                  style={{
+                    fontSize: 14,
+                    fontWeight: "800",
+                    color: C.text,
+                  }}
+                >
+                  ${Number(e.amount || 0).toLocaleString()}
+                </Text>
+              </View>
+            );
+          })
+        )}
+      </Card>
+    </ScrollView>
+  );
+}
+
 // ─── CHALLENGES ───────────────────────────────────────────────────────────────
 // ─── CHALLENGES ───────────────────────────────────────────────────────────────
 export function Challenges({ onBack }: any) {
@@ -1885,6 +2166,7 @@ export function Menu({ mode, onModeToggle, onNavigate }: any) {
   const [maxSpend, setMaxSpend] = useState<string>("20000");
   const [loadingLimit, setLoadingLimit] = useState(true);
   const [savingLimit, setSavingLimit] = useState(false);
+  const [showLimitModal, setShowLimitModal] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -1923,6 +2205,10 @@ export function Menu({ mode, onModeToggle, onNavigate }: any) {
       setSavingLimit(false);
     }
   };
+
+  const currentLimitDisplay = loadingLimit
+    ? "Loading..."
+    : `$${Number(maxSpend || "0").toLocaleString()}`;
 
   return (
     <ScrollView contentContainerStyle={{ paddingBottom: 100, paddingTop: 30 }}>
@@ -1992,61 +2278,70 @@ export function Menu({ mode, onModeToggle, onNavigate }: any) {
         >
           Max you&apos;re allowed to drain from Savings before the villain arc kicks in (used by the hidden Stack&apos;d button).
         </Text>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-          <View
+        <View
+          style={{
+            borderTopWidth: 1,
+            borderBottomWidth: 1,
+            borderColor: "rgba(0,0,0,0.06)",
+          }}
+        >
+          <TouchableOpacity
+            onPress={() => setShowLimitModal(true)}
+            activeOpacity={0.7}
             style={{
-              flex: 1,
               flexDirection: "row",
               alignItems: "center",
-              backgroundColor: "rgba(0,0,0,0.04)",
-              borderColor: C.cardBorder,
-              borderWidth: 1,
-              borderRadius: 12,
-              paddingHorizontal: 12,
-              paddingVertical: 8,
-            }}
-          >
-            <Text style={{ color: C.muted, fontSize: 14, marginRight: 4 }}>$</Text>
-            <TextInput
-              value={maxSpend}
-              onChangeText={(txt) =>
-                setMaxSpend(txt.replace(/[^0-9]/g, ""))
-              }
-              keyboardType="numeric"
-              style={{
-                flex: 1,
-                fontSize: 15,
-                fontWeight: "700",
-                color: C.text,
-                paddingVertical: 0,
-              }}
-              placeholder="20000"
-              placeholderTextColor={C.muted}
-            />
-          </View>
-          <TouchableOpacity
-            onPress={saveLimit}
-            disabled={savingLimit || loadingLimit}
-            style={{
+              justifyContent: "space-between",
               paddingVertical: 10,
-              paddingHorizontal: 14,
-              borderRadius: 12,
-              backgroundColor:
-                savingLimit || loadingLimit ? "rgba(0,0,0,0.1)" : "#8b5cf6",
             }}
-            activeOpacity={0.8}
           >
+            <View style={{ flex: 1, marginRight: 8 }}>
+              <Text style={{ fontSize: 13, color: C.text, fontWeight: "600" }}>
+                Villain limit from Savings
+              </Text>
+              <Text style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>
+                Tap to adjust how much you&apos;re allowed to drain
+              </Text>
+            </View>
             <Text
               style={{
-                color: "white",
-                fontSize: 13,
+                fontSize: 14,
                 fontWeight: "700",
+                color: C.text,
               }}
             >
-              {savingLimit ? "Saving..." : "Save"}
+              {currentLimitDisplay}
             </Text>
           </TouchableOpacity>
         </View>
+      </Card>
+      <Card>
+        <TouchableOpacity
+          onPress={() => onNavigate("manual-assets")}
+          activeOpacity={0.75}
+          style={{
+            paddingVertical: 10,
+          }}
+        >
+          <Text
+            style={{
+              fontWeight: "700",
+              fontSize: 14,
+              color: C.text,
+              marginBottom: 4,
+            }}
+          >
+            Real Estate & Others
+          </Text>
+          <Text
+            style={{
+              fontSize: 12,
+              color: C.muted,
+            }}
+          >
+            Manually log other assets (property, side hustles, collectibles) and see a history of entries.
+          </Text>
+        </TouchableOpacity>
       </Card>
       <Card style={{ backgroundColor: "#fca5a5" }}>
          <View style={{ flexDirection: "row", alignItems: "center", justifyContent:"center" }}>
@@ -2057,6 +2352,109 @@ export function Menu({ mode, onModeToggle, onNavigate }: any) {
           </View>
         </View>
       </Card>
+      <Modal
+        visible={showLimitModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowLimitModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View
+            style={[
+              styles.modalSheet,
+              {
+                padding: 20,
+              },
+            ]}
+          >
+            <Text
+              style={{
+                fontWeight: "700",
+                fontSize: 16,
+                color: C.text,
+                marginBottom: 8,
+              }}
+            >
+              Adjust villain limit
+            </Text>
+            <Text
+              style={{
+                fontSize: 12,
+                color: C.muted,
+                marginBottom: 12,
+              }}
+            >
+              How much Savings you&apos;re comfortable draining before the villain arc warnings light up.
+            </Text>
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                backgroundColor: "rgba(0,0,0,0.04)",
+                borderColor: C.cardBorder,
+                borderWidth: 1,
+                borderRadius: 12,
+                paddingHorizontal: 12,
+                paddingVertical: 8,
+                marginBottom: 14,
+              }}
+            >
+              <Text style={{ color: C.muted, fontSize: 14, marginRight: 4 }}>$</Text>
+              <TextInput
+                value={maxSpend}
+                onChangeText={(txt) =>
+                  setMaxSpend(txt.replace(/[^0-9]/g, ""))
+                }
+                keyboardType="numeric"
+                style={{
+                  flex: 1,
+                  fontSize: 15,
+                  fontWeight: "700",
+                  color: C.text,
+                  paddingVertical: 0,
+                }}
+                placeholder="20000"
+                placeholderTextColor={C.muted}
+              />
+            </View>
+            <View style={{ flexDirection: "row", gap: 8 }}>
+              <TouchableOpacity
+                onPress={async () => {
+                  await saveLimit();
+                  setShowLimitModal(false);
+                }}
+                disabled={savingLimit || loadingLimit}
+                style={[
+                  styles.primaryButton,
+                  {
+                    flex: 1,
+                    backgroundColor:
+                      savingLimit || loadingLimit ? "rgba(0,0,0,0.1)" : "#8b5cf6",
+                  },
+                ]}
+              >
+                <Text style={styles.primaryButtonText}>
+                  {savingLimit ? "Saving..." : "Save limit"}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => setShowLimitModal(false)}
+                style={[
+                  styles.outlineButton,
+                  {
+                    flex: 1,
+                    marginBottom: 0,
+                  },
+                ]}
+              >
+                <Text style={{ fontSize: 14, color: C.muted, fontWeight: "600" }}>
+                  Cancel
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
