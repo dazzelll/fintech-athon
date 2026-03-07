@@ -1141,11 +1141,10 @@ export function Streaks({ onBack }: any) {
     { name: "Learning Streak", current: 0, best: 7, goal: 14, emoji: "📚" },
   ];
   return (
-    <ScrollView contentContainerStyle={{ paddingBottom: 100 }}>
+    <ScrollView contentContainerStyle={{ paddingBottom: 100, paddingTop:30 }}>
       <BackBtn
         onBack={onBack}
         title="Streaks"
-        subtitle="Build momentum with daily habits"
       />
       <View
         style={{
