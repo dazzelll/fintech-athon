@@ -142,6 +142,7 @@ function HistoryChart({ data, color }: { data: { m: string; v: number }[]; color
 // ── main component ─────────────────────────────────────────────────────────────
 
 export function AssetDetailSheet({ asset, onClose }: any) {
+  type Holding = { ticker: string; name: string; value: number; change: number };
   const meta = ASSET_META[asset.name] ?? {
     subtitle: "Asset Holding",
     description: "Detailed information about this asset class.",
@@ -149,7 +150,7 @@ export function AssetDetailSheet({ asset, onClose }: any) {
     liquidity: 50,
   };
   // Use live holdings/history from sandbox (Alpaca) when present, else static data
-  const holdings = (asset.holdings && asset.holdings.length > 0) ? asset.holdings : (ASSET_HOLDINGS[asset.name] ?? []);
+  const holdings: Holding[] = (asset.holdings && asset.holdings.length > 0) ? asset.holdings : (ASSET_HOLDINGS[asset.name] ?? []);
   const history  = (asset.history && asset.history.length > 0) ? asset.history : (ASSET_HISTORY[asset.name] ?? []);
 
   const healthLabel = asset.mood === "happy" ? "😊 Healthy" : asset.mood === "worried" ? "😟 At Risk" : "😐 Neutral";
@@ -271,7 +272,7 @@ export function AssetDetailSheet({ asset, onClose }: any) {
             <View style={{ backgroundColor: "white", borderRadius: 16, padding: 16, marginBottom: 12, borderColor: "rgba(0,0,0,0.07)", borderWidth: 1 }}>
               <Text style={{ fontSize: 14, fontWeight: "700", color: C.text, marginBottom: 4 }}>Holdings</Text>
               <Text style={{ fontSize: 12, color: C.muted, marginBottom: 12 }}>Individual positions in this asset class</Text>
-              {holdings.map((h, i) => (
+              {holdings.map((h: Holding, i: number) => (
                 <View key={i} style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", backgroundColor: "rgba(0,0,0,0.025)", borderRadius: 12, padding: 12, marginBottom: 8 }}>
                   <View>
                     <Text style={{ fontSize: 13, fontWeight: "700", color: C.text }}>{h.ticker} – {h.name}</Text>

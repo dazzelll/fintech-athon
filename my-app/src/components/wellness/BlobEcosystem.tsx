@@ -98,6 +98,14 @@ export function FloatingBlob({ asset, baseRadius, size, x, y, onTap, peers, cont
 }
 
 export function BlobEcosystem({ assets, onBlobTap }: any) {
+  type Particle = {
+    asset: any;
+    r: number;
+    x: number;
+    y: number;
+    vx: number;
+    vy: number;
+  };
   const containerH = 340;
   const containerW = Dimensions.get('window').width - 64; 
   const centerX = containerW / 2;
@@ -129,8 +137,8 @@ export function BlobEcosystem({ assets, onBlobTap }: any) {
 
   useEffect(() => {
     const interval = setInterval(() => {
-      setParticles((prev) => {
-        const next = prev.map(p => ({ ...p }));
+      setParticles((prev: Particle[]) => {
+        const next: Particle[] = prev.map((p: Particle) => ({ ...p }));
 
         for (let p of next) {
           p.vx += (centerX - p.x) * GRAVITY;
@@ -185,7 +193,7 @@ export function BlobEcosystem({ assets, onBlobTap }: any) {
     <View>
       {/* ─── THE PUZZLE TANK ─── */}
       <View style={{ width: "100%", height: containerH, backgroundColor: "#EBF3FF", borderRadius: 24, overflow: "hidden", borderWidth: 2, borderColor: "#D0E1F9" }}>
-        {particles.map((p) => (
+        {particles.map((p: Particle) => (
           <FloatingBlob
             key={p.asset.name}
             asset={p.asset}
