@@ -37,9 +37,9 @@ export function Dashboard({ onNavigate, mode }: any) {
     "Bonds":        ScrollText,
   };
 
-  // Reusable function to fetch the latest portfolio data
+  // Use sandbox (Alpaca + supplemental) so numbers reflect real/live data, not static mock
   const fetchPortfolio = () => {
-    fetch(`${API_BASE_URL}/portfolio`)
+    fetch(`${BASE_URL}/portfolio/sandbox`)
       .then((res) => res.json())
       .then((data) => {
         console.log("✅ Live data fetched. Total:", data.total);

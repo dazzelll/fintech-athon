@@ -142,14 +142,16 @@ function HistoryChart({ data, color }: { data: { m: string; v: number }[]; color
 // ── main component ─────────────────────────────────────────────────────────────
 
 export function AssetDetailSheet({ asset, onClose }: any) {
+  type Holding = { ticker: string; name: string; value: number; change: number };
   const meta = ASSET_META[asset.name] ?? {
     subtitle: "Asset Holding",
     description: "Detailed information about this asset class.",
     diversification: 50,
     liquidity: 50,
   };
-  const holdings = ASSET_HOLDINGS[asset.name] ?? [];
-  const history  = ASSET_HISTORY[asset.name]  ?? [];
+  // Use live holdings/history from sandbox (Alpaca) when present, else static data
+  const holdings: Holding[] = (asset.holdings && asset.holdings.length > 0) ? asset.holdings : (ASSET_HOLDINGS[asset.name] ?? []);
+  const history  = (asset.history && asset.history.length > 0) ? asset.history : (ASSET_HISTORY[asset.name] ?? []);
 
   const healthLabel = asset.mood === "happy" ? "😊 Healthy" : asset.mood === "worried" ? "😟 At Risk" : "😐 Neutral";
   const monthPct    = asset.month ?? 0;
@@ -202,15 +204,15 @@ export function AssetDetailSheet({ asset, onClose }: any) {
             <Text style={{ fontSize: 13, color: C.muted, lineHeight: 20 }}>{meta.description}</Text>
           </View>
 
-          {/* ── Performance tiles ── */}
+          {/* ── Performance tiles (use API values when present) ── */}
           <View style={{ backgroundColor: "white", borderRadius: 16, padding: 16, marginBottom: 12, borderColor: "rgba(0,0,0,0.07)", borderWidth: 1 }}>
             <Text style={{ fontSize: 14, fontWeight: "700", color: C.text, marginBottom: 12 }}>Performance</Text>
             <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
               {[
-                { label: "24H",  value: asset.day   },
-                { label: "7D",   value: asset.week  },
-                { label: "1M",   value: asset.month },
-                { label: "1Y",   value: asset.year  },
+                { label: "24H",  value: asset.day ?? 0 },
+                { label: "7D",   value: asset.week ?? 0 },
+                { label: "1M",   value: asset.month ?? 0 },
+                { label: "1Y",   value: asset.year ?? 0 },
               ].map(({ label, value }) => (
                 <View key={label} style={{ flex: 1, minWidth: "22%", backgroundColor: "rgba(0,0,0,0.03)", borderRadius: 12, padding: 10, alignItems: "center" }}>
                   <Text style={{ fontSize: 11, color: C.muted, marginBottom: 4 }}>{label}</Text>
@@ -257,12 +259,20 @@ export function AssetDetailSheet({ asset, onClose }: any) {
             </View>
           </View>
 
+          {/* ── Stocks empty hint (Alpaca has no positions yet) ── */}
+          {asset.name === "Stocks" && asset.value === 0 && (
+            <View style={{ backgroundColor: "rgba(59,130,246,0.08)", borderRadius: 16, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: "rgba(59,130,246,0.2)" }}>
+              <Text style={{ fontSize: 13, color: C.text, marginBottom: 4 }}>No stock positions yet</Text>
+              <Text style={{ fontSize: 12, color: C.muted }}>Buy stocks in your Alpaca paper account to see them here. Until then, only your brokerage cash appears under Savings.</Text>
+            </View>
+          )}
+
           {/* ── Holdings ── */}
           {holdings.length > 0 && (
             <View style={{ backgroundColor: "white", borderRadius: 16, padding: 16, marginBottom: 12, borderColor: "rgba(0,0,0,0.07)", borderWidth: 1 }}>
               <Text style={{ fontSize: 14, fontWeight: "700", color: C.text, marginBottom: 4 }}>Holdings</Text>
               <Text style={{ fontSize: 12, color: C.muted, marginBottom: 12 }}>Individual positions in this asset class</Text>
-              {holdings.map((h, i) => (
+              {holdings.map((h: Holding, i: number) => (
                 <View key={i} style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", backgroundColor: "rgba(0,0,0,0.025)", borderRadius: 12, padding: 12, marginBottom: 8 }}>
                   <View>
                     <Text style={{ fontSize: 13, fontWeight: "700", color: C.text }}>{h.ticker} – {h.name}</Text>
