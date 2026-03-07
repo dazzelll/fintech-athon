@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, Platform, ActivityIndicator } from 'react-native';
 import { C } from './constants';
-import { Home, Target, Settings, ChevronLeft, Trophy, Skull } from 'lucide-react-native';
+import { Home, Target, Settings, ChevronLeft, Trophy, Skull, TrendingUp } from 'lucide-react-native';
 import { API_BASE_URL } from "../../lib/api";
 
 
@@ -87,44 +87,45 @@ export function StockLiveTicker() {
       </View>
 
       <View style={{ flexDirection: "row", gap: 8 }}>
-        {prices.map((stock) => (
-          <View
-            key={stock.symbol}
-            style={{
-              flex: 1,
-              backgroundColor: "rgba(255,255,255,0.05)",
-              padding: 10,
-              borderRadius: 12,
-            }}
-          >
+        {prices.map((stock) => {
+          const Icon = TrendingUp;
+          return (
             <View
+              key={stock.symbol}
               style={{
-                flexDirection: "row",
-                alignItems: "center",
-                gap: 4,
-                marginBottom: 4,
+                flex: 1,
+                backgroundColor: "rgba(255,255,255,0.05)",
+                padding: 10,
+                borderRadius: 12,
               }}
             >
-              <Text style={{ color: stock.color, fontSize: 14 }}>
-                {stock.icon}
-              </Text>
-              <Text
+              <View
                 style={{
-                  color: "rgba(255,255,255,0.7)",
-                  fontSize: 11,
-                  fontWeight: "700",
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 4,
+                  marginBottom: 4,
                 }}
               >
-                {stock.symbol}
+                <Icon size={16} color={stock.color} />
+                <Text
+                  style={{
+                    color: "rgba(255,255,255,0.7)",
+                    fontSize: 11,
+                    fontWeight: "700",
+                  }}
+                >
+                  {stock.symbol}
+                </Text>
+              </View>
+              <Text
+                style={{ color: "white", fontSize: 13, fontWeight: "800" }}
+              >
+                ${stock.price.toFixed(2)}
               </Text>
             </View>
-            <Text
-              style={{ color: "white", fontSize: 13, fontWeight: "800" }}
-            >
-              ${stock.price.toFixed(2)}
-            </Text>
-          </View>
-        ))}
+          );
+        })}
       </View>
     </View>
   );

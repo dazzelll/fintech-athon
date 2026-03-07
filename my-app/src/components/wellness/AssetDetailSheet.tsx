@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
 import Svg, { Path, Circle, Line, Text as SvgText, Defs, LinearGradient, Stop } from "react-native-svg";
+import { TrendingUp, Home, PiggyBank, Bitcoin, ScrollText } from "lucide-react-native";
 import { C, pctC, fmt } from './constants';
 import { ProgressBar, styles } from './SharedUI';
 
@@ -143,6 +144,14 @@ function HistoryChart({ data, color }: { data: { m: string; v: number }[]; color
 
 export function AssetDetailSheet({ asset, onClose }: any) {
   type Holding = { ticker: string; name: string; value: number; change: number };
+  const assetIcons: Record<string, any> = {
+    "Stocks":       TrendingUp,
+    "Real Estate":  Home,
+    "Savings":      PiggyBank,
+    "Crypto":       Bitcoin,
+    "Bonds":        ScrollText,
+  };
+  const Icon = assetIcons[asset.name] ?? TrendingUp;
   const meta = ASSET_META[asset.name] ?? {
     subtitle: "Asset Holding",
     description: "Detailed information about this asset class.",
@@ -175,7 +184,7 @@ export function AssetDetailSheet({ asset, onClose }: any) {
 
           {/* Icon circle */}
           <View style={{ width: 72, height: 72, borderRadius: 36, backgroundColor: "rgba(255,255,255,0.22)", alignItems: "center", justifyContent: "center", marginBottom: 10 }}>
-            <Text style={{ fontSize: 36 }}>{asset.emoji}</Text>
+            <Icon size={32} color="white" />
           </View>
 
           <Text style={{ fontSize: 26, fontWeight: "900", color: "white", letterSpacing: -0.5 }}>{asset.name}</Text>

@@ -113,27 +113,43 @@ export function BlobEcosystem({ assets, onBlobTap }: any) {
 
   // We set base area to 60% of container so they clump nicely without being forced to stretch into corners
   const usablePixelArea = (containerW * containerH) * 0.60; 
-  const totalWealth = assets.reduce((sum: number, a: any) => sum + a.value, 0);
 
-  const [particles, setParticles] = useState(() => {
-    return assets.slice(0, 5).map((asset: any, index: number) => {
-      const percentage = asset.value / totalWealth;
+  // Helper: build particles from the latest assets so blob taps always use fresh values
+  const buildParticles = (srcAssets: any[]): Particle[] => {
+    const totalWealth = srcAssets.reduce((sum: number, a: any) => sum + (a.value || 0), 0) || 1;
+    return srcAssets.slice(0, 5).map((asset: any, index: number) => {
+      const percentage = (asset.value || 0) / totalWealth;
       const blobArea = usablePixelArea * percentage;
-      
-      // FIX: Lowered the minimum radius from 30 to 12.
-      // This ensures 7% assets (Bonds) are visibly tiny compared to 38% assets (Stocks)
       const r = Math.max(12, Math.sqrt(blobArea / Math.PI)); 
-      
       const angle = (index / 5) * Math.PI * 2;
       return {
         asset,
-        r: r,
+        r,
         x: centerX + Math.cos(angle) * 40,
         y: centerY + Math.sin(angle) * 40,
-        vx: 0, vy: 0,
+        vx: 0,
+        vy: 0,
       };
     });
-  });
+  };
+
+  const [particles, setParticles] = useState<Particle[]>(() => buildParticles(assets));
+
+  // Rebuild particle asset references whenever the portfolio data changes
+  useEffect(() => {
+    setParticles((prev) => {
+      // Preserve existing positions/velocities when possible, but update asset payloads
+      const nextBase = buildParticles(assets);
+      if (!prev || prev.length === 0) return nextBase;
+
+      return nextBase.map((p, idx) => {
+        const prevP = prev[idx];
+        return prevP
+          ? { ...p, x: prevP.x, y: prevP.y, vx: prevP.vx, vy: prevP.vy }
+          : p;
+      });
+    });
+  }, [assets, usablePixelArea, centerX, centerY]);
 
   useEffect(() => {
     const interval = setInterval(() => {

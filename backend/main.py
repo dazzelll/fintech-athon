@@ -47,6 +47,8 @@ stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
 
 HACKATHON_TOP_UP_TOTAL = 0
 HACKATHON_SABOTAGE_MODE = False
+# User-configurable guardrail: max amount they feel okay draining from Savings
+MAX_SAVINGS_SPEND = 20000.0
 
 # --- MOCK FALLBACK DATA ---
 MOCK_ASSETS = [
@@ -83,9 +85,14 @@ ALPACA_BASE_URL = os.getenv("ALPACA_BASE_URL", "https://paper-api.alpaca.markets
 
 @app.post("/api/demo/sabotage")
 async def trigger_sabotage():
+    """
+    Secret long‑press easter egg on the Stack'd logo.
+    When triggered, we flip sabotage mode on. The actual damage applied to the
+    portfolio is calculated centrally from MAX_SAVINGS_SPEND.
+    """
     global HACKATHON_SABOTAGE_MODE
     HACKATHON_SABOTAGE_MODE = True
-    print(f"DEBUG: Sabotage Mode is now {HACKATHON_SABOTAGE_MODE}")
+    print(f"DEBUG: Sabotage Mode is now {HACKATHON_SABOTAGE_MODE} (max_savings_spend={MAX_SAVINGS_SPEND})")
     return {"success": True, "message": "Data sabotaged!"}
 
 
@@ -133,20 +140,18 @@ async def get_portfolio():
     assets = copy.deepcopy(MOCK_ASSETS)
 
     villain_event_active = HACKATHON_SABOTAGE_MODE
-    if HACKATHON_SABOTAGE_MODE:
-        for a in assets:
-            if a['name'] == 'Savings':
-                a['value'] = 15000   # Drop savings dangerously low
-            if a['name'] == 'Crypto':
-                a['value'] = 120000  # Spike crypto to look reckless
 
+    # Apply any Stripe top-ups first (these are "good" events)
     for a in assets:
-        if a['name'] == 'Savings':
-            a['value'] += HACKATHON_TOP_UP_TOTAL
+        if a["name"] == "Savings":
+            a["value"] += HACKATHON_TOP_UP_TOTAL
 
-    total = sum(a['value'] for a in assets)
+    # Then, if sabotage is active, drain Savings a bit more than the guardrail
+    assets = _apply_sabotage_to_assets(assets)
+
+    total = sum(a["value"] for a in assets)
     for a in assets:
-        a['pct'] = round((a['value'] / total) * 100) if total > 0 else 0
+        a["pct"] = round((a["value"] / total) * 100) if total > 0 else 0
 
     portfolio_obj = {"total": total, "assets": assets}
     # Pass villain_events_count=1 when sabotaged so health score reflects it
@@ -179,6 +184,29 @@ class SandboxPortfolio(BaseModel):
     total: float
     assets: list
 
+
+class SpendThresholdRequest(BaseModel):
+    max_savings_spend: float
+
+
+@app.get("/api/settings/spend-threshold")
+async def get_spend_threshold():
+    """Return the current Savings overspend guardrail used for the villain arc."""
+    return {"max_savings_spend": MAX_SAVINGS_SPEND}
+
+
+@app.post("/api/settings/spend-threshold")
+async def set_spend_threshold(req: SpendThresholdRequest):
+    """Update the max amount the user is comfortable draining from Savings."""
+    global MAX_SAVINGS_SPEND
+    try:
+        MAX_SAVINGS_SPEND = max(0.0, float(req.max_savings_spend))
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=400, detail="Invalid max_savings_spend")
+    print(f"Updated MAX_SAVINGS_SPEND to {MAX_SAVINGS_SPEND}")
+    return {"success": True, "max_savings_spend": MAX_SAVINGS_SPEND}
+
+
 def _get_supplemental_assets() -> list[dict]:
     """Optional non-Alpaca wealth (Real Estate, Crypto, Bonds). Set in .env or 0."""
     def _float_env(name: str, default: float = 0.0) -> float:
@@ -192,6 +220,36 @@ def _get_supplemental_assets() -> list[dict]:
         {"name": "Crypto", "value": _float_env("SUPPLEMENTAL_CRYPTO", 0), "pct": 0, "color": "#f59e0b", "emoji": "₿", "mood": "neutral"},
         {"name": "Bonds", "value": _float_env("SUPPLEMENTAL_BONDS", 0), "pct": 0, "color": "#ec4899", "emoji": "📜", "mood": "neutral"},
     ]
+
+
+def _apply_sabotage_to_assets(assets: list[dict]) -> list[dict]:
+    """
+    When sabotage mode is active, simulate a villain‑arc overspend:
+    drain more from Savings than the user’s comfort limit.
+    """
+    global HACKATHON_SABOTAGE_MODE, MAX_SAVINGS_SPEND
+
+    if not HACKATHON_SABOTAGE_MODE:
+        return assets
+
+    try:
+        savings = next((a for a in assets if a.get("name") == "Savings"), None)
+        if not savings:
+            return assets
+
+        current_val = float(savings.get("value", 0) or 0)
+        if current_val <= 0 or MAX_SAVINGS_SPEND <= 0:
+            return assets
+
+        # Overspend slightly beyond the chosen guardrail, but never more than the balance.
+        overspend_target = MAX_SAVINGS_SPEND * 1.1
+        deduction = min(current_val, overspend_target)
+        savings["value"] = max(0.0, current_val - deduction)
+
+        return assets
+    except Exception as e:
+        print("Sabotage apply error:", repr(e))
+        return assets
 
 
 def _alpaca_history_to_chart(timestamps: list[int], equity: list[float], num_points: int = 6) -> list[dict]:
@@ -480,20 +538,11 @@ async def get_villain_data(req: VillainRoastRequest):
     if not HACKATHON_SABOTAGE_MODE:
         return {"alerts": [], "caughtIn4K": [], "history": []}
 
-    # Build the sabotaged asset snapshot so the roast reflects real numbers
-    sabotaged_assets = copy.deepcopy(MOCK_ASSETS)
-    for a in sabotaged_assets:
-        if a['name'] == 'Savings':
-            a['value'] = 15000
-        if a['name'] == 'Crypto':
-            a['value'] = 120000
+    # Use the same portfolio snapshot the dashboard uses (including sabotage)
+    portfolio_snapshot = await get_sandbox_portfolio()
+    assets_for_ai = portfolio_snapshot.get("assets", [])
 
-    # Recalculate percentages so the AI sees accurate pct values
-    total = sum(a['value'] for a in sabotaged_assets)
-    for a in sabotaged_assets:
-        a['pct'] = round((a['value'] / total) * 100) if total > 0 else 0
-
-    dynamic_message, action_steps = await generate_villain_roast(sabotaged_assets, req.riskLevel)
+    dynamic_message, action_steps = await generate_villain_roast(assets_for_ai, req.riskLevel)
 
     return {
         "alerts": [{
@@ -637,12 +686,17 @@ async def get_sandbox_portfolio():
     sandbox = await fetch_alpaca_portfolio()
     if sandbox is None:
         print("Sandbox portfolio: using fallback (Alpaca not available)")
-        # Fallback: reuse the existing logic from /api/portfolio
+        # Fallback: reuse the existing logic from /api/portfolio"
         return await get_portfolio()
 
     # Reuse existing health/wealth age logic so the blob + villain arc still work
     assets = sandbox.assets
-    total = sandbox.total
+
+    # If sabotage mode is active, apply the same overspend damage here so the
+    # dashboard blobs and detail views show the villain‑arc version too.
+    assets = _apply_sabotage_to_assets(assets)
+
+    total = sum(a["value"] for a in assets)
 
     portfolio_obj = {"total": total, "assets": assets}
     health = calculate_health_score(portfolio_obj, villain_events_count=0, streak_avg=12)

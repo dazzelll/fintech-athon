@@ -5,11 +5,16 @@ import {
   ScrollView,
   TouchableOpacity,
   TextInput,
-  Dimensions, Animated, StyleSheet, ActivityIndicator
+  Dimensions,
+  Animated,
+  StyleSheet,
+  ActivityIndicator,
+  Modal,
 } from "react-native";
 import { C, ASSETS, fmt, pctC } from "./constants";
 import { Card, Badge, ProgressBar, BackBtn, styles } from "./SharedUI";
 import { BlobEcosystem } from "./BlobEcosystem";
+import { AssetDetailSheet } from "./AssetDetailSheet";
 import {HandCoins, Lightbulb, PiggyBank, PiggyBankIcon} from 'lucide-react-native'
 import { Icon } from "expo-router";
 import { API_BASE_URL } from "../../lib/api";
@@ -18,6 +23,8 @@ import { API_BASE_URL } from "../../lib/api";
 export function WealthBlob({ onBack }: any) {
   const [assets, setAssets] = useState(ASSETS);
   const [loading, setLoading] = useState(true);
+  const [selAsset, setSelAsset] = useState<any>(null);
+  const [health, setHealth] = useState<number | null>(null);
 
   useEffect(() => {
     const load = async () => {
@@ -26,6 +33,11 @@ export function WealthBlob({ onBack }: any) {
         const data = await res.json();
         if (data.assets && Array.isArray(data.assets)) {
           setAssets(data.assets);
+        }
+        if (data.health && typeof data.health.overall === "number") {
+          setHealth(data.health.overall);
+        } else {
+          setHealth(null);
         }
       } catch (e) {
         console.log("sandbox portfolio fetch failed, using defaults", e);
@@ -68,14 +80,19 @@ export function WealthBlob({ onBack }: any) {
             <ActivityIndicator />
           </View>
         ) : (
-          <BlobEcosystem assets={assets} onBlobTap={() => {}} />
+          <BlobEcosystem assets={assets} onBlobTap={setSelAsset} />
         )}
         <View style={{ alignItems: "center", marginTop: 14 }}>
           <Text style={{ fontSize: 18, fontWeight: "700", color: C.text }}>
-            😊 Happy & Healthy
+            😊 {health !== null && health >= 80
+              ? "Thriving"
+              : health !== null && health >= 60
+              ? "Happy & Healthy"
+              : "Needs Attention"}
           </Text>
           <Text style={{ fontSize: 13, color: C.muted, marginTop: 4 }}>
-            Overall Health Score: 75%
+            Overall Health Score:{" "}
+            {health !== null ? `${Math.round(health)}%` : "75%"}
           </Text>
         </View>
       </Card>
@@ -143,6 +160,18 @@ export function WealthBlob({ onBack }: any) {
           </View>
         ))}
       </Card>
+
+      {/* Asset detail sheet, wired to the same assets as the blobs */}
+      <Modal
+        visible={!!selAsset}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setSelAsset(null)}
+      >
+        {selAsset && (
+          <AssetDetailSheet asset={selAsset} onClose={() => setSelAsset(null)} />
+        )}
+      </Modal>
     </ScrollView>
   );
 }
@@ -1838,6 +1867,48 @@ export function VillainArc({ onBack, riskLevel }: any) {
 // ─── MENU ─────────────────────────────────────────────────────────────────────
 export function Menu({ mode, onModeToggle, onNavigate }: any) {
 
+  const [maxSpend, setMaxSpend] = useState<string>("20000");
+  const [loadingLimit, setLoadingLimit] = useState(true);
+  const [savingLimit, setSavingLimit] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+    const load = async () => {
+      try {
+        const res = await fetch(`${API_BASE_URL}/settings/spend-threshold`);
+        const data = await res.json();
+        if (!isMounted) return;
+        if (typeof data.max_savings_spend === "number") {
+          setMaxSpend(String(Math.round(data.max_savings_spend)));
+        }
+      } catch (e) {
+        console.log("spend threshold fetch failed, using default", e);
+      } finally {
+        if (isMounted) setLoadingLimit(false);
+      }
+    };
+    load();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const saveLimit = async () => {
+    const numeric = parseFloat(maxSpend.replace(/[^0-9.]/g, "")) || 0;
+    setSavingLimit(true);
+    try {
+      await fetch(`${API_BASE_URL}/settings/spend-threshold`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ max_savings_spend: numeric }),
+      });
+    } catch (e) {
+      console.log("spend threshold save failed", e);
+    } finally {
+      setSavingLimit(false);
+    }
+  };
+
   return (
     <ScrollView contentContainerStyle={{ paddingBottom: 100, paddingTop: 30 }}>
       <Text
@@ -1884,6 +1955,82 @@ export function Menu({ mode, onModeToggle, onNavigate }: any) {
               blobby@gmail.com
             </Text>
           </View>
+        </View>
+      </Card>
+      <Card>
+        <Text
+          style={{
+            fontWeight: "700",
+            fontSize: 14,
+            color: C.text,
+            marginBottom: 6,
+          }}
+        >
+          Villain Arc Guardrail
+        </Text>
+        <Text
+          style={{
+            fontSize: 12,
+            color: C.muted,
+            marginBottom: 12,
+          }}
+        >
+          Max you&apos;re allowed to drain from Savings before the villain arc kicks in (used by the hidden Stack&apos;d button).
+        </Text>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+          <View
+            style={{
+              flex: 1,
+              flexDirection: "row",
+              alignItems: "center",
+              backgroundColor: "rgba(0,0,0,0.04)",
+              borderColor: C.cardBorder,
+              borderWidth: 1,
+              borderRadius: 12,
+              paddingHorizontal: 12,
+              paddingVertical: 8,
+            }}
+          >
+            <Text style={{ color: C.muted, fontSize: 14, marginRight: 4 }}>$</Text>
+            <TextInput
+              value={maxSpend}
+              onChangeText={(txt) =>
+                setMaxSpend(txt.replace(/[^0-9]/g, ""))
+              }
+              keyboardType="numeric"
+              style={{
+                flex: 1,
+                fontSize: 15,
+                fontWeight: "700",
+                color: C.text,
+                paddingVertical: 0,
+              }}
+              placeholder="20000"
+              placeholderTextColor={C.muted}
+            />
+          </View>
+          <TouchableOpacity
+            onPress={saveLimit}
+            disabled={savingLimit || loadingLimit}
+            style={{
+              paddingVertical: 10,
+              paddingHorizontal: 14,
+              borderRadius: 12,
+              backgroundColor:
+                savingLimit || loadingLimit ? "rgba(0,0,0,0.1)" : "#8b5cf6",
+            }}
+            activeOpacity={0.8}
+          >
+            <Text
+              style={{
+                color: "white",
+                fontSize: 13,
+                fontWeight: "700",
+              }}
+            >
+              {savingLimit ? "Saving..." : "Save"}
+            </Text>
+          </TouchableOpacity>
         </View>
       </Card>
       <Card style={{ backgroundColor: "#fca5a5" }}>

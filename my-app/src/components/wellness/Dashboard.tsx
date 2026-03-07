@@ -200,7 +200,7 @@ export function Dashboard({ onNavigate, mode }: any) {
   <BlobEcosystem assets={assets} onBlobTap={setSelAsset} />
 
 {/* Asset list */}
-<View style={{ marginTop: 16 }}>
+      <View style={{ marginTop: 16 }}>
 {assets.map((a: any, i: number) => {
   const Icon = assetIcons[a.name] ?? TrendingUp;
   return (
