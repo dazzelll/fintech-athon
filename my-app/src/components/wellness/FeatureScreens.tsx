@@ -823,7 +823,31 @@ export function QuarterlyWrapped({ onBack }: any) {
       sub: "On track for all of them",
       stat: "Keep going!",
     },
-    { bg: "wealth-age" }, 
+    {
+      bg: "#4c1d95",
+      emoji: "🪞",
+      title: "Your Money Mirror",
+      sub: "How you actually played this quarter",
+      detail:
+        "We tracked when you panic sold, FOMO bought, and overconcentrated — so you see patterns, not just your final balance.",
+    },
+    {
+      bg: "#111827",
+      emoji: "👀",
+      title: "Caught in 4K",
+      sub: "Impulsive decisions that quietly taxed your returns",
+      detail:
+        "You tend to sell during volatility. It's cost you ~$4.8k historically versus simply holding, and at least one FOMO buy underperformed your core holdings.",
+    },
+    {
+      bg: "#7c3aed",
+      emoji: "⚙️",
+      title: "Next‑Quarter Upgrade Plan",
+      sub: "Tiny tweaks, big behavioral compounding",
+      detail:
+        "Try a 24‑hour pause before any fear‑ or hype‑driven trade, cap any single position at a target %, and do a quick monthly reflection tagging decisions as regret vs. learning.",
+    },
+    { bg: "wealth-age" },
   ];
 
   const s = slides[slide];
@@ -942,6 +966,19 @@ export function QuarterlyWrapped({ onBack }: any) {
                   {(s as any).stat}
                 </Text>
               </View>
+            )}
+            {(s as any).detail && (
+              <Text
+                style={{
+                  marginTop: 24,
+                  color: "rgba(255,255,255,0.85)",
+                  fontSize: 14,
+                  lineHeight: 22,
+                  textAlign: "center",
+                }}
+              >
+                {(s as any).detail}
+              </Text>
             )}
           </View>
         )}
@@ -1658,7 +1695,6 @@ export function VillainArc({ onBack, riskLevel }: any) {
   const [roast, setRoast]           = useState<string | null>(null);
   const [advice, setAdvice]         = useState<string | null>(null);
   const [loading, setLoading]       = useState(false);
-  const [caughtIn4K, setCaughtIn4K] = useState<string[]>([]);
 
   // Shared helper — used by both useEffect and the manual button
   // FIX 1: riskLevel goes in the JSON body, not as a query param
@@ -1683,10 +1719,6 @@ export function VillainArc({ onBack, riskLevel }: any) {
         setAlerts([]);
         setRoast(null);
         setAdvice(null);
-      }
-
-      if (data.caughtIn4K && data.caughtIn4K.length > 0) {
-        setCaughtIn4K(data.caughtIn4K);
       }
     } catch (err) {
       console.error("Villain fetch error:", err);
@@ -1755,23 +1787,6 @@ export function VillainArc({ onBack, riskLevel }: any) {
             </View>
           </View>
         </View>
-      )}
-
-      {/* ── Caught in 4K ── */}
-      {caughtIn4K.length > 0 && (
-        <Card style={{ marginBottom:12, borderColor:"#f59e0b44", borderWidth:1 }}>
-          <Text style={{ fontWeight:"800", fontSize:15, color:C.text, marginBottom:12 }}>
-            👀 Caught in 4K
-          </Text>
-          {caughtIn4K.map((item, i) => (
-            <View key={i} style={{
-              backgroundColor:"rgba(245,158,11,0.08)", borderRadius:12,
-              padding:12, marginBottom: i < caughtIn4K.length - 1 ? 8 : 0,
-            }}>
-              <Text style={{ fontSize:13, color:C.text }}>{item}</Text>
-            </View>
-          ))}
-        </Card>
       )}
 
       {/* ── Portfolio Advisor ── */}
