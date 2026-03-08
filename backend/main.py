@@ -21,7 +21,15 @@ import google.generativeai as genai
 from database import engine, get_db, Base
 import models
 from pydantic import BaseModel
-from engines import calculate_health_score, calculate_wealth_age, generate_prophecy_text, generate_gemini_prophecy, extract_simulation_parameters, generate_villain_roast
+from engines import (
+    calculate_health_score,
+    calculate_wealth_age,
+    generate_prophecy_text,
+    generate_gemini_prophecy,
+    extract_simulation_parameters,
+    generate_villain_roast,
+    build_portfolio_trajectory,
+)
 
 # 1. Create DB Tables
 models.Base.metadata.create_all(bind=engine)
