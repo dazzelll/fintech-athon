@@ -191,6 +191,7 @@ async def get_portfolio():
 class SandboxPortfolio(BaseModel):
     total: float
     assets: list
+    history: list[dict] | None = None
 
 
 class SpendThresholdRequest(BaseModel):
@@ -449,7 +450,7 @@ async def fetch_alpaca_portfolio() -> SandboxPortfolio | None:
             for a in assets:
                 a["pct"] = round((a["value"] / total) * 100) if total > 0 else 0
 
-            return SandboxPortfolio(total=total, assets=assets)
+            return SandboxPortfolio(total=total, assets=assets, history=portfolio_history)
         except Exception as e:
             print("Alpaca sandbox fetch error:", repr(e))
             return None
@@ -772,28 +773,25 @@ async def get_sandbox_portfolio():
         else:
             a["mood"] = "neutral"
 
+    # Prefer Alpaca-derived 6M history when present, else fall back to mock.
+    history = sandbox.history or [
+        {"m": "Oct", "v": 445000},
+        {"m": "Nov", "v": 458000},
+        {"m": "Dec", "v": 472000},
+        {"m": "Jan", "v": 465000},
+        {"m": "Feb", "v": 480000},
+        {"m": "Mar", "v": total},
+    ]
+
+    # Ensure the last point reflects the latest total
+    if history:
+        history = history[:-1] + [{"m": history[-1]["m"], "v": total}]
+
     return {
         "total": total,
         "assets": assets,
         "health": health,
         "wealth_age": wealth_age,
         "villain_event_active": False,
-        "history": [],
-    }
-
-
-@app.get("/api/portfolio/trajectory")
-async def get_portfolio_trajectory():
-    """
-    Ensemble, category-aware 6-month trajectory.
-    - Uses the sandbox portfolio (Alpaca + supplemental, or fallback mock)
-    - Applies asset-class-specific, macro-aware, AI-tilted returns
-    Returns past + future points for the dashboard line chart.
-    """
-    # Reuse sandbox logic so sabotage / top-ups and health score stay consistent
-    base = await get_sandbox_portfolio()
-    trajectory = await build_portfolio_trajectory(base)
-    return {
-        "base": base,
-        "trajectory": trajectory,
+        "history": history,
     }

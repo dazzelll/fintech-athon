@@ -16,7 +16,7 @@ import { Card, Badge, ProgressBar, BackBtn, styles } from "./SharedUI";
 import { BlobEcosystem } from "./BlobEcosystem";
 import { AssetDetailSheet } from "./AssetDetailSheet";
 import {HandCoins, Lightbulb, PiggyBank, PiggyBankIcon} from 'lucide-react-native'
-import { Icon } from "expo-router";
+import { Icon, useRouter } from "expo-router";
 import { API_BASE_URL } from "../../lib/api";
 
 // ─── WEALTH BLOB ──────────────────────────────────────────────────────────────
@@ -2166,6 +2166,7 @@ export function Menu({ mode, onModeToggle, onNavigate }: any) {
   const [loadingLimit, setLoadingLimit] = useState(true);
   const [savingLimit, setSavingLimit] = useState(false);
   const [showLimitModal, setShowLimitModal] = useState(false);
+  const router = useRouter();
 
   useEffect(() => {
     let isMounted = true;
@@ -2266,23 +2267,9 @@ export function Menu({ mode, onModeToggle, onNavigate }: any) {
             marginBottom: 6,
           }}
         >
-          Villain Arc Guardrail
-        </Text>
-        <Text
-          style={{
-            fontSize: 12,
-            color: C.muted,
-            marginBottom: 12,
-          }}
-        >
-          Max you&apos;re allowed to drain from Savings before the villain arc kicks in (used by the hidden Stack&apos;d button).
+          Set Savings Spending Limit
         </Text>
         <View
-          style={{
-            borderTopWidth: 1,
-            borderBottomWidth: 1,
-            borderColor: "rgba(0,0,0,0.06)",
-          }}
         >
           <TouchableOpacity
             onPress={() => setShowLimitModal(true)}
@@ -2295,11 +2282,8 @@ export function Menu({ mode, onModeToggle, onNavigate }: any) {
             }}
           >
             <View style={{ flex: 1, marginRight: 8 }}>
-              <Text style={{ fontSize: 13, color: C.text, fontWeight: "600" }}>
-                Villain limit from Savings
-              </Text>
               <Text style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>
-                Tap to adjust how much you&apos;re allowed to drain
+                Adjust how much you can spend before being reminded
               </Text>
             </View>
             <Text
@@ -2330,26 +2314,20 @@ export function Menu({ mode, onModeToggle, onNavigate }: any) {
               marginBottom: 4,
             }}
           >
-            Real Estate & Others
-          </Text>
-          <Text
-            style={{
-              fontSize: 12,
-              color: C.muted,
-            }}
-          >
-            Manually log other assets (property, side hustles, collectibles) and see a history of entries.
+            Manually Add to Portfolio
           </Text>
         </TouchableOpacity>
       </Card>
       <Card style={{ backgroundColor: "#fca5a5" }}>
-         <View style={{ flexDirection: "row", alignItems: "center", justifyContent:"center" }}>
-          <View>
-            <Text style={{ fontWeight: "700", fontSize: 20, color:"white" }}>
-              Sign Out
-            </Text>
-          </View>
-        </View>
+        <TouchableOpacity
+          onPress={() => router.replace("/login")}
+          activeOpacity={0.8}
+          style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", paddingVertical: 10 }}
+        >
+          <Text style={{ fontWeight: "700", fontSize: 20, color: "white" }}>
+            Sign Out
+          </Text>
+        </TouchableOpacity>
       </Card>
       <Modal
         visible={showLimitModal}
