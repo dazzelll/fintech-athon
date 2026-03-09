@@ -311,7 +311,7 @@ export function EventSimulator({ onBack }: any) {
               alignItems: "center",
             }}
           >
-            <Text style={styles.primaryButtonText}>⚡ Run Simulation</Text>
+            <Text style={styles.primaryButtonText}>Run Simulation</Text>
           </View>
         </TouchableOpacity>
       </Card>

@@ -17,7 +17,7 @@ FRED_API_KEY = os.getenv("FRED_API_KEY")
 URA_ACCESS_KEY = os.getenv("URA_ACCESS_KEY")
 
 # --- SCORING ENGINE ---
-def calculate_health_score(portfolio, villain_events_count=0, streak_avg=0):
+def calculate_health_score(portfolio, villain_events_count=0, streak_avg=0, challenges_completed=0):
     assets = portfolio.get('assets', [])
     total = portfolio.get('total', 0)
     if total == 0: return {"overall": 0, "diversification": 0, "liquidity": 0, "behavioral_resilience": 0}
@@ -56,23 +56,27 @@ def calculate_health_score(portfolio, villain_events_count=0, streak_avg=0):
         liquidity = max(50, 100 - (weighted_liquidity - 0.7) * 100) # too liquid, opportunity cost
     liquidity = round(min(100, max(0, liquidity)))
 
-    # Resilience
-    villain_penalty = min(40, villain_events_count * 10)
+    # ── 4. BEHAVIORAL RESILIENCE ─────────────────────────────────────────────
+    # Villain events = reckless spending (big negative)
+    # Streaks = sustained discipline (positive)
+    # Challenges completed = active improvement (positive)
+    villain_penalty = min(30, villain_events_count * 10)
     streak_bonus = min(20, (streak_avg or 0) * 2)
-    resilience = max(0, min(100, 60 + streak_bonus - villain_penalty))
+    challenge_bonus = min(10, challenges_completed * 2)
+    behavioral_resilience = max(0, min(100, 50 + streak_bonus + challenge_bonus - villain_penalty))
 
     # Crypto Penalty
     crypto_pct = next((a['pct'] for a in assets if a['name'] == 'Crypto'), 0)
     crypto_penalty = max(0, crypto_pct - 30)
 
     overall = round((diversification * 0.35) + (liquidity * 0.30) + 
-                    (resilience * 0.25) + max(0, 10 - crypto_penalty))
+                    (behavioral_resilience * 0.25) + max(0, 10 - crypto_penalty))
     
     return {
         "overall": min(100, overall),
         "diversification": min(100, diversification),
         "liquidity": min(100, liquidity),
-        "behavioral_resilience": resilience
+        "behavioral_resilience": behavioral_resilience
     }
 
 def calculate_wealth_age(total_wealth, real_age, health_score):

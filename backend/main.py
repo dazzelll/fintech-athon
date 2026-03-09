@@ -176,7 +176,9 @@ async def get_portfolio(db: Session = Depends(get_db)):
     portfolio_obj = {"total": total, "assets": assets}
     # Pass villain_events_count=1 when sabotaged so health score reflects it
     villain_events_count = 1 if HACKATHON_SABOTAGE_MODE else 0
-    health = calculate_health_score(portfolio_obj, villain_events_count=villain_events_count, streak_avg=12)
+    challenges_completed = db.query(models.Challenge).filter_by(completed=True).count()
+    streak_avg = db.query(sa_func.avg(models.Streak.current_count)).scalar() or 0
+    health = calculate_health_score(portfolio_obj, villain_events_count=villain_events_count, streak_avg=streak_avg, challenges_completed=challenges_completed)         
     wealth_age = calculate_wealth_age(total, 35, health["overall"])
 
     for a in assets:
@@ -918,7 +920,10 @@ async def get_sandbox_portfolio(db: Session = Depends(get_db)):
                 a["pct"] = 0
 
     portfolio_obj = {"total": max(0, total-TOTAL_DEBT), "assets": assets, "gross_total":total, "debt":TOTAL_DEBT}
-    health = calculate_health_score(portfolio_obj, villain_events_count=0, streak_avg=12)
+    villain_events_count = 1 if HACKATHON_SABOTAGE_MODE else 0
+    challenges_completed = db.query(models.Challenge).filter_by(completed=True).count()
+    streak_avg = db.query(sa_func.avg(models.Streak.current_count)).scalar() or 0      
+    health = calculate_health_score(portfolio_obj, villain_events_count=villain_events_count, streak_avg=streak_avg, challenges_completed=challenges_completed) 
     wealth_age = calculate_wealth_age(total, 35, health["overall"])
 
     # Ensure moods for blobs
