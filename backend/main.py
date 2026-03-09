@@ -140,12 +140,22 @@ async def confirm_top_up():
 
 
 @app.get("/api/portfolio")
-async def get_portfolio():
+async def get_portfolio(db: Session = Depends(get_db)):
     """Fetches the portfolio and applies any Stripe top-ups"""
     global HACKATHON_TOP_UP_TOTAL
     global HACKATHON_SABOTAGE_MODE
 
     assets = copy.deepcopy(MOCK_ASSETS)
+
+    # Merge in any manually logged assets from settings
+    manual_totals = _manual_asset_totals(db)
+    for a in assets:
+        extra = manual_totals.get(a["name"])
+        if extra:
+            try:
+                a["value"] += float(extra)
+            except (TypeError, ValueError):
+                pass
 
     villain_event_active = HACKATHON_SABOTAGE_MODE
 
@@ -268,6 +278,24 @@ async def list_manual_assets(db: Session = Depends(get_db)):
         for r in rows
     ]
 
+
+def _manual_asset_totals(db: Session) -> dict[str, float]:
+    """
+    Aggregate manual asset logs into per-category totals that can be merged
+    into the main portfolio (Real Estate & Others, Stocks, Savings, Crypto, Bonds).
+    """
+    rows = (
+        db.query(models.ManualAssetLog.category, models.func.sum(models.ManualAssetLog.amount))
+        .group_by(models.ManualAssetLog.category)
+        .all()
+    )
+    totals: dict[str, float] = {}
+    for cat, amt in rows:
+        try:
+            totals[str(cat)] = float(amt or 0.0)
+        except (TypeError, ValueError):
+            continue
+    return totals
 
 def _get_supplemental_assets() -> list[dict]:
     """Optional non-Alpaca wealth (Real Estate, Crypto, Bonds). Set in .env or 0."""
@@ -740,7 +768,7 @@ async def get_live_stock_prices():
             return {"success": True, "data": STOCK_FALLBACK_DATA}
         
 @app.get("/api/portfolio/sandbox")
-async def get_sandbox_portfolio():
+async def get_sandbox_portfolio(db: Session = Depends(get_db)):
     """
     Try to build a portfolio from sandbox (Alpaca).
     If anything fails, fall back to the existing mock /api/portfolio logic.
@@ -751,20 +779,30 @@ async def get_sandbox_portfolio():
         # Fallback: reuse the existing logic from /api/portfolio"
         return await get_portfolio()
 
-    # Merge Alpaca sandbox values into rich mock portfolio so the user always
-    # sees a full range of assets, while Alpaca contributes real cash/stocks.
+    # Start from rich mock portfolio so the user always sees a full range of
+    # assets, then layer Alpaca sandbox values + manual assets on top.
     alpaca_assets = {a.get("name"): a for a in (sandbox.assets or [])}
     assets = copy.deepcopy(MOCK_ASSETS)
 
+    # 1) Add Alpaca values (typically savings + stocks)
     for a in assets:
         name = a.get("name")
         src = alpaca_assets.get(name)
-        if not src:
-            continue
-        try:
-            a["value"] += float(src.get("value", 0) or 0)
-        except (TypeError, ValueError):
-            pass
+        if src:
+            try:
+                a["value"] += float(src.get("value", 0) or 0)
+            except (TypeError, ValueError):
+                pass
+
+    # 2) Add manual assets from settings (real estate, side hustles, etc.)
+    manual_totals = _manual_asset_totals(db)
+    for a in assets:
+        extra = manual_totals.get(a.get("name"))
+        if extra:
+            try:
+                a["value"] += float(extra)
+            except (TypeError, ValueError):
+                pass
 
     # If sabotage mode is active, apply the same overspend damage here so the
     # dashboard blobs and detail views show the villain‑arc version too.
@@ -778,10 +816,14 @@ async def get_sandbox_portfolio():
 
     # Ensure moods for blobs
     for a in assets:
-        if a["name"] == "Crypto" and a.get("pct", 0) > 30:
-            a["mood"] = "worried"
-        elif a.get("pct", 0) > 0:
+        pct = a.get("pct", 0)
+        # 1. Dominant Assets (Greater than 25% of portfolio)
+        if pct > 30:
             a["mood"] = "happy"
+        # 2. At-Risk or Neglected Assets (Less than 10% of portfolio)
+        elif pct < 10:
+            a["mood"] = "worried"
+        # 3. Stable Middle-Class Assets
         else:
             a["mood"] = "neutral"
 

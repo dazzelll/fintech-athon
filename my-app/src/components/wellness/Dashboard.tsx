@@ -38,13 +38,29 @@ export function Dashboard({ onNavigate, mode, useDemoAccount }: any) {
     "Bonds":                ScrollText,
   };
 
-  // Use sandbox (Alpaca + supplemental) so numbers reflect real/live data, not static mock
+  // Use sandbox (Alpaca + supplemental) or pure mock depending on mode
   const fetchPortfolio = () => {
     if (useDemoAccount) {
-      setAssets(FALLBACK_ASSETS);
-      setTotalWealth(WEALTH_HISTORY[WEALTH_HISTORY.length - 1].v);
-      setHealth(null);
-      setTrajectory(WEALTH_HISTORY);
+      fetch(`${API_BASE_URL}/portfolio`)
+        .then((res) => res.json())
+        .then((data) => {
+          console.log("✅ Demo portfolio fetched. Total:", data.total);
+          setAssets(data.assets ?? FALLBACK_ASSETS);
+          setTotalWealth(data.total ?? WEALTH_HISTORY[WEALTH_HISTORY.length - 1].v);
+          if (data.health) setHealth(data.health);
+          if (data.history && Array.isArray(data.history) && data.history.length > 0) {
+            setTrajectory(data.history);
+          } else {
+            setTrajectory(WEALTH_HISTORY);
+          }
+        })
+        .catch((err) => {
+          console.error("Demo portfolio fetch failed, using local fallback:", err);
+          setAssets(FALLBACK_ASSETS);
+          setTotalWealth(WEALTH_HISTORY[WEALTH_HISTORY.length - 1].v);
+          setHealth(null);
+          setTrajectory(WEALTH_HISTORY);
+        });
       return;
     }
 
