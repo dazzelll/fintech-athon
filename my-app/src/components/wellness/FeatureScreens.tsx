@@ -762,6 +762,11 @@ const RainingBackground = () => {
 // ─── QUARTERLY WRAPPED ────────────────────────────────────────────────────────
 export function QuarterlyWrapped({ onBack }: any) {
   const [slide, setSlide] = useState(0);
+  const [wrapLoading, setWrapLoading] = useState(true);
+  const [wrapTotal, setWrapTotal] = useState<number | null>(null);
+  const [wrapAssets, setWrapAssets] = useState<any[]>([]);
+  const [wrapHistory, setWrapHistory] = useState<{ m: string; v: number }[]>([]);
+  const [caughtIn4K, setCaughtIn4K] = useState<string | null>(null);
 
   // Setup Animation Values for the Text
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -795,26 +800,93 @@ export function QuarterlyWrapped({ onBack }: any) {
     ]).start();
   }, [slide]);
 
+  // Pull live-ish data so wrapped reflects the current portfolio state
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      try {
+        setWrapLoading(true);
+        const res = await fetch(`${API_BASE_URL}/portfolio/sandbox`);
+        const data = await res.json();
+        if (cancelled) return;
+        if (typeof data.total === "number") setWrapTotal(data.total);
+        if (Array.isArray(data.assets)) setWrapAssets(data.assets);
+        if (Array.isArray(data.history)) setWrapHistory(data.history);
+      } catch (e) {
+        console.log("wrapped portfolio fetch failed", e);
+      } finally {
+        if (!cancelled) setWrapLoading(false);
+      }
+    };
+
+    const loadCaught = async () => {
+      try {
+        const res = await fetch(`${API_BASE_URL}/villain/roast`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ riskLevel: 5 }),
+        });
+        const data = await res.json();
+        const first = Array.isArray(data?.caughtIn4K) ? data.caughtIn4K[0] : null;
+        if (!cancelled) setCaughtIn4K(typeof first === "string" ? first : null);
+      } catch (e) {
+        // ok to ignore
+      }
+    };
+
+    load();
+    loadCaught();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const money = (n: number) => `$${Math.round(n).toLocaleString()}`;
+  const now = new Date();
+  const q = Math.floor(now.getMonth() / 3) + 1;
+  const year = now.getFullYear();
+
+  const h = wrapHistory || [];
+  const start = h.length >= 2 ? Number(h[0]?.v ?? 0) : 0;
+  const end = h.length >= 1 ? Number(h[h.length - 1]?.v ?? 0) : (wrapTotal ?? 0);
+  const delta = start > 0 ? end - start : 0;
+  const growthPct = start > 0 ? (delta / start) * 100 : 0;
+
+  const growthTitle =
+    wrapLoading ? "…" : `${growthPct >= 0 ? "+" : ""}${growthPct.toFixed(1)}%`;
+  const growthStat =
+    wrapLoading || start <= 0
+      ? "Updating…"
+      : `${delta >= 0 ? money(delta) + " gained" : money(Math.abs(delta)) + " lost"}`;
+
+  const top = (wrapAssets || []).reduce((best: any, a: any) => {
+    if (!a || typeof a.pct !== "number") return best;
+    if (!best || a.pct > best.pct) return a;
+    return best;
+  }, null);
+  const topSub = top?.name ? `${top.name} led your portfolio` : "Top allocation this quarter";
+  const topStat = typeof top?.pct === "number" ? `${top.pct}% allocation` : "—";
+
   const slides = [
     {
       bg: "#4f46e5",
       emoji: "🎉",
-      title: "Q1 2026 Wrapped",
-      sub: "Your wealth journey this quarter",
+      title: `Q${q} ${year} Wrapped`,
+      sub: wrapLoading ? "Pulling your latest snapshot…" : "Your wealth journey this quarter",
     },
     {
       bg: "#065f46",
       emoji: "📈",
-      title: "+12.5%",
+      title: growthTitle,
       sub: "Portfolio growth this quarter",
-      stat: "$53,750 gained",
+      stat: growthStat,
     },
     {
       bg: "#1e3a8a",
       emoji: "🏆",
       title: "Top Move",
-      sub: "Stocks led your portfolio",
-      stat: "+18.4% annual",
+      sub: topSub,
+      stat: topStat,
     },
     {
       bg: "#7c3aed",
@@ -837,7 +909,11 @@ export function QuarterlyWrapped({ onBack }: any) {
       title: "Caught in 4K",
       sub: "Impulsive decisions that quietly taxed your returns",
       detail:
-        "You tend to sell during volatility. It's cost you ~$4.8k historically versus simply holding, and at least one FOMO buy underperformed your core holdings.",
+        caughtIn4K
+          ? caughtIn4K
+          : wrapLoading
+          ? "Checking for spicy moments…"
+          : "No impulsive moments detected in this snapshot. Clean quarter.",
     },
     {
       bg: "#7c3aed",
