@@ -16,9 +16,9 @@ import {
   Menu,
 } from "./wellness/FeatureScreens";
 
-const BACKEND = "http://10.0.2.2:8000";
+import { API_BASE_URL } from "../lib/api"
 
-function AlpacaConnectScreen({ onDone }: { onDone: () => void }) {
+function AlpacaConnectScreen({ onDone, onUseDemo }: { onDone: () => void; onUseDemo: () => void }) {
   const [status, setStatus] = useState<"idle" | "loading" | "ok" | "error">("idle");
   const [message, setMessage] = useState<string>("");
 
@@ -26,7 +26,7 @@ function AlpacaConnectScreen({ onDone }: { onDone: () => void }) {
     try {
       setStatus("loading");
       setMessage("");
-      const res = await fetch(`${BACKEND}/api/alpaca/status`);
+      const res = await fetch(`${API_BASE_URL}/alpaca/status`);
       const data = await res.json();
       if (data.connected) {
         setStatus("ok");
@@ -97,7 +97,7 @@ function AlpacaConnectScreen({ onDone }: { onDone: () => void }) {
 
       <View style={{ marginBottom: 24 }}>
         <TouchableOpacity
-          onPress={onDone}
+          onPress={onUseDemo}
           style={{
             borderRadius: 999,
             paddingVertical: 10,
@@ -120,12 +120,13 @@ export default function WealthWellness() {
   const [view, setView] = useState("connect");
   const [mode, setMode] = useState("growth");
   const [riskLevel, setRiskLevel] = useState(5)
+  const [useDemoAccount, setUseDemoAccount] = useState(false);
   
   const nav = (v: string) => setView(v);
   const back = () => setView("dashboard");
 
   const screens: any = {
-    dashboard: <Dashboard onNavigate={nav} mode={mode} />,
+    dashboard: <Dashboard onNavigate={nav} mode={mode} useDemoAccount={useDemoAccount} />,
     blob: <WealthBlob onBack={back} />,
     manifestation: <ManifestationBoard onBack={back} />,
     simulator: <EventSimulator onBack={back} />,
@@ -143,7 +144,13 @@ if (view === "connect") {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: C.bg }}>
       <StatusBar barStyle="dark-content" backgroundColor={C.bg} />
-      <AlpacaConnectScreen onDone={() => setView("dashboard")} />
+      <AlpacaConnectScreen
+        onDone={() => setView("dashboard")}
+        onUseDemo={() => {
+          setUseDemoAccount(true);
+          setView("dashboard");
+        }}
+      />
     </SafeAreaView>
   );
 }
