@@ -21,6 +21,8 @@ export function Dashboard({ onNavigate, mode, useDemoAccount }: any) {
 
   const [assets, setAssets] = useState(FALLBACK_ASSETS);
   const [totalWealth, setTotalWealth] = useState(487500);
+  const [grossWealth, setGrossWealth] = useState(487500);
+  const [totalDebt, setTotalDebt] = useState(0);    
   const [health, setHealth] = useState<any>(null);
   const [trajectory, setTrajectory] = useState<any[]>(WEALTH_HISTORY);
 
@@ -67,9 +69,12 @@ export function Dashboard({ onNavigate, mode, useDemoAccount }: any) {
     fetch(`${API_BASE_URL}/portfolio/sandbox`)
       .then((res) => res.json())
       .then((data) => {
+        console.log("📦 portfolio data:", JSON.stringify(data));
         console.log("✅ Live data fetched. Total:", data.total);
         setAssets(data.assets);
         setTotalWealth(data.total);
+        if (typeof data.gross_total === "number") setGrossWealth(data.gross_total);
+        if (typeof data.debt === "number") setTotalDebt(data.debt); 
         if (data.health) setHealth(data.health);
         if (data.history && Array.isArray(data.history) && data.history.length > 0) {
           setTrajectory(data.history);
@@ -168,39 +173,132 @@ export function Dashboard({ onNavigate, mode, useDemoAccount }: any) {
       contentContainerStyle={{ paddingBottom: 100 }}
       showsVerticalScrollIndicator={false}
     >
-      {/* Header */}
-      <View
+{/* Header */}
+<View
+  style={{
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 18,
+  }}
+>
+  <View>
+    <TouchableOpacity
+      activeOpacity={1}
+      onLongPress={handleSecretSabotage}
+    >
+      <Text
         style={{
-          flexDirection: "row",
-          justifyContent: "space-between",
-          alignItems: "flex-start",
-          marginBottom: 18,
+          fontSize: 28,
+          fontWeight: "900",
+          color: C.text,
+          letterSpacing: -0.8,
+          paddingTop: 30,
         }}
       >
-        <View>
-          {/* Secret invisible long-press button for the demo */}
-          <TouchableOpacity
-            activeOpacity={1}
-            onLongPress={handleSecretSabotage}
-          >
-            <Text
-              style={{
-                fontSize: 28,
-                fontWeight: "900",
-                color: C.text,
-                letterSpacing: -0.8,
-                paddingTop: 30,
-              }}
-            >
-              Stack'd
-            </Text>
-          </TouchableOpacity>
-          <Text style={{ fontSize: 13, color: C.muted }}>
-            Your financial health at a glance
-          </Text>
-        </View>
-      </View>
+        Stack'd
+      </Text>
+    </TouchableOpacity>
+    <Text style={{ fontSize: 13, color: C.muted }}>
+      Your financial health at a glance
+    </Text>
+  </View>
 
+  {!isConnected && (
+    <TouchableOpacity
+      onPress={handleConnectBank}
+      disabled={isConnectingBank}
+      style={{
+        backgroundColor: isConnectingBank ? "#374151" : "#111827",
+        paddingVertical: 8,
+        paddingHorizontal: 14,
+        borderRadius: 20,
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 6,
+        marginTop: 24,
+      }}
+    >
+      {isConnectingBank ? (
+        <ActivityIndicator color="white" size="small" />
+      ) : (
+        <Text style={{ color: "white", fontWeight: "700", fontSize: 13 }}>
+          Connect to Stripe
+        </Text>
+      )}
+    </TouchableOpacity>
+  )}
+</View>
+
+{/* DYNAMIC 3-ACT DEMO UI */}
+{isConnected && villainAlert && (
+  <View
+    style={{
+      backgroundColor: "#3f1d38",
+      padding: 18,
+      borderRadius: 16,
+      marginBottom: 12,
+      borderWidth: 1,
+      borderColor: "#be123c",
+    }}
+  >
+    <View
+      style={{
+        flexDirection: "row",
+        alignItems: "center",
+        marginBottom: 10,
+      }}
+    >
+      <Text style={{ fontSize: 24, marginRight: 8 }}>
+        {villainAlert.emoji}
+      </Text>
+      <View style={{ flex: 1 }}>
+        <Text
+          style={{
+            color: "#fda4af",
+            fontWeight: "800",
+            fontSize: 13,
+            textTransform: "uppercase",
+          }}
+        >
+          Villain Arc Detected
+        </Text>
+        <Text
+          style={{
+            color: "white",
+            fontWeight: "600",
+            fontSize: 14,
+            marginTop: 2,
+          }}
+        >
+          {villainAlert.message}
+        </Text>
+      </View>
+    </View>
+    <TouchableOpacity
+      onPress={handleTopUp}
+      disabled={isConnectingStripe}
+      style={{
+        backgroundColor: isConnectingStripe ? "#881337" : "#e11d48",
+        padding: 14,
+        borderRadius: 12,
+        marginTop: 6,
+        flexDirection: "row",
+        justifyContent: "center",
+        alignItems: "center",
+        gap: 8,
+      }}
+    >
+      {isConnectingStripe ? (
+        <ActivityIndicator color="white" />
+      ) : (
+        <Text style={{ color: "white", fontWeight: "800", fontSize: 15 }}>
+          💳 Offset Damage: Top Up $500
+        </Text>
+      )}
+    </TouchableOpacity>
+  </View>
+)}
 {/* ── Unified Wealth Overview ── */}
 <Card style={{ padding: 16, marginBottom: 12 }}>
   
@@ -226,6 +324,33 @@ export function Dashboard({ onNavigate, mode, useDemoAccount }: any) {
 
   {/* Blob Ecosystem */}
   <BlobEcosystem assets={assets} onBlobTap={setSelAsset} />
+  {totalDebt > 0 && (
+  <View style={{ marginTop: 14, marginBottom: 2 }}>
+    <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+        <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: "#ef4444" }} />
+        <Text style={{ fontSize: 13, fontWeight: "700", color: "#ef4444" }}>Debt</Text>
+      </View>
+      <Text style={{ fontSize: 13, fontWeight: "800", color: "#ef4444" }}>−{fmt(totalDebt)}</Text>
+    </View>
+    <View style={{ height: 7, borderRadius: 4, backgroundColor: "rgba(239,68,68,0.12)", overflow: "hidden" }}>
+      <View style={{
+        height: 7,
+        borderRadius: 4,
+        backgroundColor: "#ef4444",
+        width: `${Math.min(100, (totalDebt / (grossWealth || 1)) * 100)}%`,
+      }} />
+    </View>
+    <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 5 }}>
+      <Text style={{ fontSize: 10, color: "#ef4444" }}>
+        {Math.round((totalDebt / (grossWealth || 1)) * 100)}% of gross wealth
+      </Text>
+      <Text style={{ fontSize: 10, color: "#10b981", fontWeight: "600" }}>
+        Net: {fmt(totalWealth)}
+      </Text>
+    </View>
+  </View>
+)}
 
 {/* Asset list */}
       <View style={{ marginTop: 16 }}>
@@ -255,110 +380,6 @@ export function Dashboard({ onNavigate, mode, useDemoAccount }: any) {
 })}
 </View>
 </Card>
-
-      {/* DYNAMIC 3-ACT DEMO UI */}
-      {!isConnected ? (
-        // ACT 1: Before Connecting
-        <TouchableOpacity
-          onPress={handleConnectBank}
-          disabled={isConnectingBank}
-          style={{
-            backgroundColor: isConnectingBank ? "#374151" : "#111827",
-            padding: 16,
-            borderRadius: 16,
-            marginBottom: 16,
-            flexDirection: "row",
-            justifyContent: "center",
-            alignItems: "center",
-            gap: 10,
-          }}
-        >
-          {isConnectingBank ? (
-            <>
-              <ActivityIndicator color="white" />
-              <Text style={{ color: "white", fontWeight: "800", fontSize: 16 }}>
-                Syncing securely...
-              </Text>
-            </>
-          ) : (
-            <Text style={{ color: "white", fontWeight: "800", fontSize: 16 }}>
-              🏦 Connect Bank Account
-            </Text>
-          )}
-        </TouchableOpacity>
-      ) : (
-        // ACT 2 & 3: After Connecting — show Villain Alert if active
-        villainAlert && (
-          <View
-            style={{
-              backgroundColor: "#3f1d38",
-              padding: 18,
-              borderRadius: 16,
-              marginBottom: 12,
-              borderWidth: 1,
-              borderColor: "#be123c",
-            }}
-          >
-            <View
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                marginBottom: 10,
-              }}
-            >
-              <Text style={{ fontSize: 24, marginRight: 8 }}>
-                {villainAlert.emoji}
-              </Text>
-              <View style={{ flex: 1 }}>
-                <Text
-                  style={{
-                    color: "#fda4af",
-                    fontWeight: "800",
-                    fontSize: 13,
-                    textTransform: "uppercase",
-                  }}
-                >
-                  Villain Arc Detected
-                </Text>
-                <Text
-                  style={{
-                    color: "white",
-                    fontWeight: "600",
-                    fontSize: 14,
-                    marginTop: 2,
-                  }}
-                >
-                  {villainAlert.message}
-                </Text>
-              </View>
-            </View>
-            <TouchableOpacity
-              onPress={handleTopUp}
-              disabled={isConnectingStripe}
-              style={{
-                backgroundColor: isConnectingStripe ? "#881337" : "#e11d48",
-                padding: 14,
-                borderRadius: 12,
-                marginTop: 6,
-                flexDirection: "row",
-                justifyContent: "center",
-                alignItems: "center",
-                gap: 8,
-              }}
-            >
-              {isConnectingStripe ? (
-                <ActivityIndicator color="white" />
-              ) : (
-                <Text
-                  style={{ color: "white", fontWeight: "800", fontSize: 15 }}
-                >
-                  💳 Offset Damage: Top Up $500
-                </Text>
-              )}
-            </TouchableOpacity>
-          </View>
-        )
-      )}
       <CryptoLiveTicker/>
       <StockLiveTicker/>
 

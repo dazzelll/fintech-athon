@@ -26,9 +26,35 @@ def calculate_health_score(portfolio, villain_events_count=0, streak_avg=0):
     hhi = sum([(a['pct'] / 100)**2 for a in assets])
     diversification = min(100, round((1 - hhi) * 125))
 
-    # Liquidity (Savings Blob)
-    savings_pct = next((a['pct'] for a in assets if a['name'] == 'Savings'), 0)
-    liquidity = min(100, savings_pct * 5)
+    # Liquidity: weighted by how easily each asset class can be liquidated
+    # Scores: Savings=1.0 (instant), Stocks=0.7 (days), Bonds=0.4 (weeks), 
+    # Crypto=0.5 (hours but volatile), Real Estate=0.05 (months)
+    LIQUIDITY_WEIGHTS = {
+        "Savings":              1.0,
+        "Stocks":               0.7,
+        "Crypto":               0.5,
+        "Bonds":                0.4,
+        "Real Estate & Others": 0.05,
+    }
+
+    weighted_liquidity = sum(
+        (a["pct"] / 100) * LIQUIDITY_WEIGHTS.get(a["name"], 0.3)
+        for a in assets
+    )
+
+    # weighted_liquidity is 0–1, scale to 0–100
+    # Ideal target is ~0.5 (balanced between liquid and growth assets)
+    # Below 0.2 = dangerously illiquid, above 0.8 = too conservative
+    raw = weighted_liquidity * 100
+    if weighted_liquidity < 0.2:
+        liquidity = raw * 1.5                        # harsh penalty zone
+    elif weighted_liquidity <= 0.5:
+        liquidity = 30 + ((weighted_liquidity - 0.2) / 0.3) * 60   # ramp 30–90
+    elif weighted_liquidity <= 0.7:
+        liquidity = 90 + ((weighted_liquidity - 0.5) / 0.2) * 10   # peak 90–100
+    else:
+        liquidity = max(50, 100 - (weighted_liquidity - 0.7) * 100) # too liquid, opportunity cost
+    liquidity = round(min(100, max(0, liquidity)))
 
     # Resilience
     villain_penalty = min(40, villain_events_count * 10)

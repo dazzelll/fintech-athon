@@ -2167,6 +2167,10 @@ export function Menu({ mode, onModeToggle, onNavigate }: any) {
   const [savingLimit, setSavingLimit] = useState(false);
   const [showLimitModal, setShowLimitModal] = useState(false);
   const router = useRouter();
+  const [totalDebt, setTotalDebt] = useState<string>("0");
+  const [loadingDebt, setLoadingDebt] = useState(true);   // ← add this
+  const [savingDebt, setSavingDebt] = useState(false);
+  const [showDebtModal, setShowDebtModal] = useState(false); 
 
   useEffect(() => {
     let isMounted = true;
@@ -2182,6 +2186,18 @@ export function Menu({ mode, onModeToggle, onNavigate }: any) {
         console.log("spend threshold fetch failed, using default", e);
       } finally {
         if (isMounted) setLoadingLimit(false);
+      }
+      try {
+        const res2 = await fetch(`${API_BASE_URL}/settings/debt`);
+        const data2 = await res2.json();
+        if (!isMounted) return;
+        if (typeof data2.total_debt === "number") {
+          setTotalDebt(String(Math.round(data2.total_debt)));
+        }
+      } catch (e) {
+        console.log("debt fetch failed, using default", e);
+      } finally {
+        if (isMounted) setLoadingDebt(false);
       }
     };
     load();
@@ -2203,6 +2219,22 @@ export function Menu({ mode, onModeToggle, onNavigate }: any) {
       console.log("spend threshold save failed", e);
     } finally {
       setSavingLimit(false);
+    }
+  };
+
+  const saveDebt = async () => {
+    const numeric = parseFloat(totalDebt.replace(/[^0-9.]/g, "")) || 0;
+    setSavingDebt(true);
+    try {
+      await fetch(`${API_BASE_URL}/settings/debt`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ total_debt: numeric }),
+      });
+    } catch (e) {
+      console.log("debt save failed", e);
+    } finally {
+      setSavingDebt(false);
     }
   };
 
@@ -2298,6 +2330,23 @@ export function Menu({ mode, onModeToggle, onNavigate }: any) {
           </TouchableOpacity>
         </View>
       </Card>
+      <Card>
+  <Text style={{ fontWeight: "700", fontSize: 14, color: C.text, marginBottom: 6 }}>
+    Total Debt
+  </Text>
+  <TouchableOpacity
+    onPress={() => setShowDebtModal(true)}
+    activeOpacity={0.7}
+    style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 10 }}
+  >
+    <Text style={{ fontSize: 11, color: C.muted, flex: 1, marginRight: 8 }}>
+      Loans, credit cards, mortgage — deducted from net wealth
+    </Text>
+    <Text style={{ fontSize: 14, fontWeight: "700", color: Number(totalDebt) > 0 ? "#ef4444" : C.text }}>
+      {loadingDebt ? "Loading..." : `$${Number(totalDebt || "0").toLocaleString()}`}
+    </Text>
+  </TouchableOpacity>
+</Card>
       <Card>
         <TouchableOpacity
           onPress={() => onNavigate("manual-assets")}
@@ -2432,6 +2481,61 @@ export function Menu({ mode, onModeToggle, onNavigate }: any) {
           </View>
         </View>
       </Modal>
+      <Modal
+  visible={showDebtModal}
+  transparent
+  animationType="fade"
+  onRequestClose={() => setShowDebtModal(false)}
+>
+  <View style={styles.modalOverlay}>
+    <View style={[styles.modalSheet, { padding: 20 }]}>
+      <Text style={{ fontWeight: "700", fontSize: 16, color: C.text, marginBottom: 8 }}>
+        Total Debt
+      </Text>
+      <Text style={{ fontSize: 12, color: C.muted, marginBottom: 12 }}>
+        Enter your total debt (loans, credit cards, mortgage). This will be subtracted from your gross wealth to show your true net worth.
+      </Text>
+      <View style={{
+        flexDirection: "row",
+        alignItems: "center",
+        backgroundColor: "rgba(0,0,0,0.04)",
+        borderColor: C.cardBorder,
+        borderWidth: 1,
+        borderRadius: 12,
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        marginBottom: 14,
+      }}>
+        <Text style={{ color: C.muted, fontSize: 14, marginRight: 4 }}>$</Text>
+        <TextInput
+          value={totalDebt}
+          onChangeText={(txt) => setTotalDebt(txt.replace(/[^0-9]/g, ""))}
+          keyboardType="numeric"
+          style={{ flex: 1, fontSize: 15, fontWeight: "700", color: "#ef4444", paddingVertical: 0 }}
+          placeholder="0"
+          placeholderTextColor={C.muted}
+        />
+      </View>
+      <View style={{ flexDirection: "row", gap: 8 }}>
+        <TouchableOpacity
+          onPress={async () => { await saveDebt(); setShowDebtModal(false); }}
+          disabled={savingDebt}
+          style={[styles.primaryButton, { flex: 1, backgroundColor: savingDebt ? "rgba(0,0,0,0.1)" : "#ef4444" }]}
+        >
+          <Text style={styles.primaryButtonText}>
+            {savingDebt ? "Saving..." : "Save debt"}
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => setShowDebtModal(false)}
+          style={[styles.outlineButton, { flex: 1, marginBottom: 0 }]}
+        >
+          <Text style={{ fontSize: 14, color: C.muted, fontWeight: "600" }}>Cancel</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  </View>
+</Modal>
     </ScrollView>
   );
 }

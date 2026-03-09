@@ -16,6 +16,7 @@ class User(Base):
     mode = Column(String, default='growth')  # 'growth' | 'frugal'
     caught_alerts = Column(JSON, nullable=True) # For the Caught in 4K alerts
     created_at = Column(DateTime, default=func.now())
+    total_debt = Column(Numeric(precision=12, scale=2), default=0.0) 
 
 class PlaidItem(Base):
     __tablename__ = "plaid_items"

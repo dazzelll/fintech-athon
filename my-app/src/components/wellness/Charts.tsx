@@ -117,11 +117,11 @@ export function LineChart({ data, assets = [], color = C.accent }: any) {
               y={0}
               textAnchor="middle"
               fill="#ef4444"
-              fontSize="10"
+              fontSize="9"
               fontFamily="System"
               fontWeight="800"
             >
-              NOW
+              Today
             </SvgText>
           </>
         )}

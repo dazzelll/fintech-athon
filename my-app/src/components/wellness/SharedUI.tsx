@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, Platform, ActivityIndicator } from 'react-native';
 import { C } from './constants';
-import { Home, Target, Settings, ChevronLeft, Trophy, Skull, TrendingUp } from 'lucide-react-native';
+import { Home, Target, Settings, ChevronLeft, Trophy, Receipt, TrendingUp } from 'lucide-react-native';
 import { API_BASE_URL } from "../../lib/api";
 
 
@@ -302,7 +302,7 @@ export function BottomNav({ active, onNavigate }: any) {
     { id: "dashboard",     icon: Home,     label: "Home"  },
     { id: "manifestation", icon: Target,   label: "Goals" },
     { id: "challenges",  icon: Trophy,  label: "Challenges" },
-    { id: "villain-arc", icon: Skull,   label: "Villain"    },
+    { id: "villain-arc", icon: Receipt,   label: "Reflections"    },
     { id: "menu",          icon: Settings, label: "Settings"  },
   ];
 
