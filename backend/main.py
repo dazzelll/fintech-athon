@@ -842,18 +842,44 @@ async def get_sandbox_portfolio(db: Session = Depends(get_db)):
     alpaca_assets = {a.get("name"): a for a in (sandbox.assets or [])}
     assets = copy.deepcopy(MOCK_ASSETS)
 
-    # 1) Apply Alpaca values (typically savings + stocks) and copy rich fields
+    # 1) Add Alpaca values (typically savings + stocks) on top of mock baseline,
+    # and copy rich fields so the asset detail sheet can show live holdings/history.
     for a in assets:
         name = a.get("name")
+        base_val = float(a.get("value", 0) or 0.0)
         src = alpaca_assets.get(name)
         if src:
             try:
-                # Replace the baseline value so holdings/history match the displayed number
-                a["value"] = float(src.get("value", 0) or 0)
+                a["value"] = base_val + float(src.get("value", 0) or 0)
             except (TypeError, ValueError):
                 pass
-            # Copy any rich detail fields when present
-            for k in ("holdings", "history", "day", "week", "month", "year"):
+
+            # Holdings: include a baseline "Other" item so holdings sum matches value
+            if src.get("holdings") is not None:
+                holdings = list(src.get("holdings") or [])
+                if base_val > 0:
+                    holdings = (
+                        [{"ticker": "DEMO", "name": "Other holdings", "value": round(base_val, 2), "change": 0}]
+                        + holdings
+                    )
+                a["holdings"] = holdings
+
+            # History: shift Alpaca history up by the baseline so the chart matches totals
+            if src.get("history") is not None:
+                hist = list(src.get("history") or [])
+                if base_val > 0 and hist:
+                    shifted = []
+                    for p in hist:
+                        try:
+                            shifted.append({"m": p.get("m"), "v": float(p.get("v", 0) or 0) + base_val})
+                        except Exception:
+                            continue
+                    a["history"] = shifted
+                else:
+                    a["history"] = hist
+
+            # Copy any simple perf fields when present (best-effort)
+            for k in ("day", "week", "month", "year"):
                 if k in src and src.get(k) is not None:
                     a[k] = src.get(k)
 
