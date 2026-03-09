@@ -1976,10 +1976,8 @@ export function VillainArc({ onBack, riskLevel }: any) {
   const [advice, setAdvice]         = useState<string | null>(null);
   const [loading, setLoading]       = useState(false);
 
-  // Shared helper — used by both useEffect and the manual button
-  // FIX 1: riskLevel goes in the JSON body, not as a query param
-  // FIX 2: populate BOTH alerts (for the banner) and roast (for the advisor card)
-  const fetchVillainData = async (level: number = riskLevel ?? 5) => {
+  // 1) Villain alerts (only when sabotage is active)
+  const fetchVillainAlerts = async (level: number = riskLevel ?? 5) => {
     try {
       const res = await fetch(`${API_BASE_URL}/villain/roast`, {
         method: "POST",
@@ -1991,31 +1989,50 @@ export function VillainArc({ onBack, riskLevel }: any) {
 
       if (data.alerts && data.alerts.length > 0) {
         setAlerts(data.alerts);
-        // Banner gets the problem statement
-        setRoast(data.alerts[0].message);
-        // Advisor card gets the action steps (separate field from backend)
-        setAdvice(data.alerts[0].steps ?? null);
       } else {
         setAlerts([]);
-        setRoast(null);
-        setAdvice(null);
       }
     } catch (err) {
       console.error("Villain fetch error:", err);
     }
   };
 
+  // 2) Always-on portfolio advisor (works with or without alerts)
+  const fetchAdvisor = async (level: number = riskLevel ?? 5) => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/villain/advisor`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ riskLevel: level }),
+      });
+      const data = await res.json();
+      console.log("📦 ADVISOR RESPONSE:", JSON.stringify(data, null, 2));
+
+      if (data && (data.message || data.steps)) {
+        setRoast(data.message ?? null);
+        setAdvice(data.steps ?? null);
+      } else {
+        setRoast(null);
+        setAdvice(null);
+      }
+    } catch (err) {
+      console.error("Advisor fetch error:", err);
+      setRoast(null);
+      setAdvice(null);
+    }
+  };
+
   // Load on mount / whenever riskLevel changes
   useEffect(() => {
-    fetchVillainData(riskLevel);
+    fetchVillainAlerts(riskLevel);
+    fetchAdvisor(riskLevel);
   }, [riskLevel]);
 
   // Manual "Get Portfolio Check" button
-  // FIX 4: was reading data.roast which doesn't exist — now uses shared helper
   const generateRoast = async () => {
     setLoading(true);
     try {
-      await fetchVillainData(riskLevel);
+      await fetchAdvisor(riskLevel);
     } catch {
       setRoast("portfolio check is offline rn, try again later");
     }

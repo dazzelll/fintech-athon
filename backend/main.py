@@ -651,29 +651,51 @@ class VillainRoastRequest(BaseModel):
 
 
 @app.post("/api/villain/roast")
-async def get_villain_data(req: VillainRoastRequest):
+async def get_villain_data(req: VillainRoastRequest, db: Session = Depends(get_db)):
     global HACKATHON_SABOTAGE_MODE
 
-    # FIX: Return early with empty alerts when sabotage is not active
-    if not HACKATHON_SABOTAGE_MODE:
-        return {"alerts": [], "caughtIn4K": [], "history": []}
-
-    # Use the same portfolio snapshot the dashboard uses (including sabotage)
-    portfolio_snapshot = await get_sandbox_portfolio()
+    # Always fetch portfolio and generate AI advice
+    portfolio_snapshot = await get_sandbox_portfolio(db)
     assets_for_ai = portfolio_snapshot.get("assets", [])
-
     dynamic_message, action_steps = await generate_villain_roast(assets_for_ai, req.riskLevel)
 
-    return {
-        "alerts": [{
+    # Alert banner only shows when villain/sabotage mode is active
+    alerts = []
+    if HACKATHON_SABOTAGE_MODE:
+        alerts = [{
             "id": "crypto_overweight",
             "message": dynamic_message,
             "steps": action_steps,
             "severity": "high",
             "emoji": "🚨"
-        }],
+        }]
+
+    return {
+        "alerts": alerts,
+        "message": dynamic_message,   # ← now always present
+        "steps": action_steps,         # ← now always present
         "caughtIn4K": ["you've ordered food delivery 23 times this month. we see you bestie 👀"],
         "history": []
+    }
+
+
+class VillainAdvisorRequest(BaseModel):
+    riskLevel: int = 5
+
+
+@app.post("/api/villain/advisor")
+async def get_villain_advisor(req: VillainAdvisorRequest, db: Session = Depends(get_db)):
+    """
+    Always-on portfolio advisor. Unlike /api/villain/roast this does NOT depend
+    on sabotage mode being active — it simply reads the current sandbox
+    portfolio (mock + Alpaca + manual assets) and returns message + steps.
+    """
+    snapshot = await get_sandbox_portfolio(db)
+    assets_for_ai = snapshot.get("assets", [])
+    dynamic_message, action_steps = await generate_villain_roast(assets_for_ai, req.riskLevel)
+    return {
+        "message": dynamic_message,
+        "steps": action_steps,
     }
 
 @app.get("/api/crypto/live-prices")

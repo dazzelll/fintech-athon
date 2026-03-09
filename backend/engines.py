@@ -186,7 +186,10 @@ Return ONLY a JSON object with exactly these two keys:
 
 "message": A single sentence (max 20 words, lowercase only) diagnosing the biggest problem with their portfolio. Be specific to their actual numbers. Slightly snarky but friendly — like a bestie who happens to be a financial advisor. No hashtags.
 
-"steps": 2-3 concrete action steps they should take RIGHT NOW to fix this portfolio, tailored to their {risk_level}/10 risk level. Write as a short paragraph (not a list). Sound like an intelligent Gen Z financial advisor. Reference their actual numbers. Be specific — e.g. "move $X from crypto into savings" not vague advice. Max 4 sentences.
+"steps": 2-3 concrete actions they should take RIGHT NOW to improve this portfolio.
+Focus ONLY on what to do immediately
+Tailored to their {risk_level}/10 risk tolerance. Reference actual numbers (e.g. "move $X from crypto into savings").
+Sound like an intelligent Gen Z financial advisor. Max 4 sentences. No vague advice.
 """
         
         response = model.generate_content(prompt)
