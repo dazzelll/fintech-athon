@@ -778,22 +778,21 @@ const RainingBackground = () => {
     Array.from({ length: 25 }).map(() => ({
       y: new Animated.Value(0),
       x: Math.random() * SCREEN_WIDTH,
-      size: Math.random() * 16 + 10, // Random size between 10 and 26
-      duration: Math.random() * 5000 + 3000, // Random fall speed (3s to 8s)
-      delay: Math.random() * 4000, // Random start delay so they don't fall all at once
+      size: Math.round(Math.random() * 16 + 10), // Safe integer
+      duration: Math.round(Math.random() * 5000 + 3000), // Safe integer
+      delay: Math.round(Math.random() * 4000), // Safe integer
       emoji: ["✨", "💰", "📈", "💎", "💸", "✦"][Math.floor(Math.random() * 6)],
     }))
   ).current;
 
   useEffect(() => {
     particles.forEach((p) => {
-      // Loop the falling animation infinitely
       Animated.loop(
         Animated.timing(p.y, {
           toValue: 1,
           duration: p.duration,
           delay: p.delay,
-          useNativeDriver: true, // Super important for 60fps smooth falling!
+          useNativeDriver: false, // 🟢 CRASH FIX: Set to false
         })
       ).start();
     });
@@ -807,14 +806,14 @@ const RainingBackground = () => {
           style={{
             position: "absolute",
             left: p.x,
-            top: -50, // Start slightly above the screen
+            top: -50,
             fontSize: p.size,
-            opacity: 0.15, // Kept subtle so it doesn't distract from the main text
+            opacity: 0.15,
             transform: [
               {
                 translateY: p.y.interpolate({
                   inputRange: [0, 1],
-                  outputRange: [0, SCREEN_HEIGHT + 100], // Fall past the bottom
+                  outputRange: [0, Math.round(SCREEN_HEIGHT + 100)], // Safe integer
                 }),
               },
             ],
@@ -833,7 +832,7 @@ export function QuarterlyWrapped({ onBack }: any) {
   const [wrapLoading, setWrapLoading] = useState(true);
   const [wrapTotal, setWrapTotal] = useState<number | null>(null);
   const [wrapAssets, setWrapAssets] = useState<any[]>([]);
-  const [wrapHistory, setWrapHistory] = useState<{ m: string; v: number }[]>([]);
+  const [growthData, setGrowthData] = useState<any>(null); // PULL NEW BACKEND DATA
   const [caughtIn4K, setCaughtIn4K] = useState<string | null>(null);
 
   // Setup Animation Values for the Text
@@ -851,19 +850,19 @@ export function QuarterlyWrapped({ onBack }: any) {
       Animated.timing(fadeAnim, { 
         toValue: 1, 
         duration: 500, 
-        useNativeDriver: true 
+        useNativeDriver: false // 🟢 CRASH FIX: Set to false
       }),
       Animated.spring(slideAnim, { 
         toValue: 0, 
         friction: 8, 
         tension: 50, 
-        useNativeDriver: true 
+        useNativeDriver: false // 🟢 CRASH FIX: Set to false
       }),
       Animated.spring(scaleAnim, { 
         toValue: 1, 
         friction: 5, 
         tension: 60, 
-        useNativeDriver: true 
+        useNativeDriver: false // 🟢 CRASH FIX: Set to false
       })
     ]).start();
   }, [slide]);
@@ -877,9 +876,11 @@ export function QuarterlyWrapped({ onBack }: any) {
         const res = await fetch(`${API_BASE_URL}/portfolio/sandbox`);
         const data = await res.json();
         if (cancelled) return;
+        
         if (typeof data.total === "number") setWrapTotal(data.total);
         if (Array.isArray(data.assets)) setWrapAssets(data.assets);
-        if (Array.isArray(data.history)) setWrapHistory(data.history);
+        if (data.growth_rates) setGrowthData(data.growth_rates); 
+
       } catch (e) {
         console.log("wrapped portfolio fetch failed", e);
       } finally {
@@ -914,16 +915,19 @@ export function QuarterlyWrapped({ onBack }: any) {
   const q = Math.floor(now.getMonth() / 3) + 1;
   const year = now.getFullYear();
 
-  const h = wrapHistory || [];
-  const start = h.length >= 2 ? Number(h[0]?.v ?? 0) : 0;
-  const end = h.length >= 1 ? Number(h[h.length - 1]?.v ?? 0) : (wrapTotal ?? 0);
-  const delta = start > 0 ? end - start : 0;
-  const growthPct = start > 0 ? (delta / start) * 100 : 0;
+  // 🟢 NEW MATH: Use AI growth rate or fallback safely
+  const growthPct = growthData?.historical ? growthData.historical * 100 : 0;
+  
+  const end = wrapTotal ?? 0;
+  const divisor = 1 + (growthPct / 100);
+  const start = divisor !== 0 ? end / divisor : end;
+  const delta = end - start;
 
   const growthTitle =
     wrapLoading ? "…" : `${growthPct >= 0 ? "+" : ""}${growthPct.toFixed(1)}%`;
+    
   const growthStat =
-    wrapLoading || start <= 0
+    wrapLoading
       ? "Updating…"
       : `${delta >= 0 ? money(delta) + " gained" : money(Math.abs(delta)) + " lost"}`;
 
@@ -958,10 +962,10 @@ export function QuarterlyWrapped({ onBack }: any) {
     },
     {
       bg: "#7c3aed",
-      emoji: "🎯",
-      title: "3 Goals Active",
-      sub: "On track for all of them",
-      stat: "Keep going!",
+      emoji: "🔮",
+      title: "AI Forecast",
+      sub: "Based on your current trajectory",
+      stat: growthData?.projected_annual ? `+${(growthData.projected_annual * 100).toFixed(1)}% Annual` : "Keep going!",
     },
     {
       bg: "#4c1d95",
@@ -982,14 +986,6 @@ export function QuarterlyWrapped({ onBack }: any) {
           : wrapLoading
           ? "Checking for spicy moments…"
           : "No impulsive moments detected in this snapshot. Clean quarter.",
-    },
-    {
-      bg: "#7c3aed",
-      emoji: "⚙️",
-      title: "Next‑Quarter Upgrade Plan",
-      sub: "Tiny tweaks, big behavioral compounding",
-      detail:
-        "Try a 24‑hour pause before any fear‑ or hype‑driven trade, cap any single position at a target %, and do a quick monthly reflection tagging decisions as regret vs. learning.",
     },
     { bg: "wealth-age" },
   ];
@@ -2495,8 +2491,8 @@ export function Menu({ mode, onModeToggle, onNavigate }: any) {
             <ShieldAlert size={20} color="#8b5cf6" />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 15, fontWeight: '700', color: C.text }}>Villain Arc Limit</Text>
-            <Text style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>Spending trigger threshold</Text>
+            <Text style={{ fontSize: 15, fontWeight: '700', color: C.text }}>Set Savings Spending Limit</Text>
+            <Text style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>Threshold to trigger villain arc notification</Text>
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             <Text style={{ fontSize: 15, fontWeight: '700', color: C.text, marginRight: 6 }}>{currentLimitDisplay}</Text>
@@ -2566,9 +2562,9 @@ export function Menu({ mode, onModeToggle, onNavigate }: any) {
       <Modal visible={showLimitModal} transparent animationType="fade" onRequestClose={() => setShowLimitModal(false)}>
         <View style={styles.modalOverlay}>
           <View style={[styles.modalSheet, { padding: 20 }]}>
-            <Text style={{ fontWeight: "700", fontSize: 16, color: C.text, marginBottom: 8 }}>Adjust villain limit</Text>
+            <Text style={{ fontWeight: "700", fontSize: 16, color: C.text, marginBottom: 8 }}>Adjust spending limit</Text>
             <Text style={{ fontSize: 12, color: C.muted, marginBottom: 12 }}>
-              How much Savings you're comfortable draining before the villain arc warnings light up.
+              How much savings you're comfortable draining before the villain arc warning pops up.
             </Text>
             <View style={{
               flexDirection: "row", alignItems: "center", backgroundColor: "rgba(0,0,0,0.04)",

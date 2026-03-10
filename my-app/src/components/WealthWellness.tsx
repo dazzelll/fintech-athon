@@ -3,6 +3,7 @@ import { SafeAreaView, View, StatusBar, Text, TouchableOpacity, ActivityIndicato
 import { C } from "./wellness/constants";
 import { BottomNav } from "./wellness/SharedUI";
 import { Dashboard } from "./wellness/Dashboard";
+import { Code2, ChevronRight, ArrowRight } from "lucide-react-native";
 import { 
   WealthBlob,
   EventSimulator,
@@ -43,75 +44,88 @@ function AlpacaConnectScreen({ onDone, onUseDemo }: { onDone: () => void; onUseD
   };
 
   return (
-    <View style={{ flex: 1, paddingHorizontal: 16, paddingTop: 40, justifyContent: "space-between" }}>
-      <View>
-        <Text style={{ fontSize: 26, fontWeight: "800", color: C.text, marginBottom: 8 }}>
-          Connect your demo brokerage
+    <View style={{ flex: 1, paddingHorizontal: 16, paddingTop: 40, justifyContent: "center", paddingBottom: 60 }}>
+      
+      {/* Header */}
+      <View style={{ marginBottom: 40 }}>
+        <Text style={{ fontSize: 14, fontWeight: "800", color: "#8b5cf6", textTransform: "uppercase", letterSpacing: 1.2, marginBottom: 8 }}>
+          Welcome back, Blobby
         </Text>
-        <Text style={{ fontSize: 14, color: C.muted, marginBottom: 24 }}>
-          We use Alpaca&apos;s paper trading sandbox to pull your stocks and cash into the Wealth Wellness blobs.
+        <Text style={{ fontSize: 34, fontWeight: "900", color: "#111827", letterSpacing: -1, marginBottom: 12 }}>
+          Connect your wealth
         </Text>
+        <Text style={{ fontSize: 15, color: "#6b7280", lineHeight: 22, fontWeight: "500" }}>
+          Link your brokerage to get real-time AI insights, or explore using our demo sandbox.
+        </Text>
+      </View>
 
-        <View style={{ backgroundColor: "white", borderRadius: 16, padding: 16, borderWidth: 1, borderColor: "rgba(0,0,0,0.06)" }}>
-          <Text style={{ fontSize: 14, fontWeight: "700", color: C.text, marginBottom: 6 }}>Alpaca Paper</Text>
-          <Text style={{ fontSize: 13, color: C.muted, marginBottom: 14 }}>
-            Uses API keys configured on the backend (paper-api.alpaca.markets). No live money involved.
-          </Text>
-
-          <TouchableOpacity
-            onPress={connect}
-            disabled={status === "loading"}
-            style={{
-              backgroundColor: C.accent,
-              borderRadius: 999,
-              paddingVertical: 10,
-              paddingHorizontal: 20,
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 8,
-            }}
-          >
-            {status === "loading" ? (
-              <ActivityIndicator color="white" />
-            ) : (
-              <Text style={{ color: "white", fontSize: 15, fontWeight: "700" }}>
-                {status === "ok" ? "Connected" : "Connect Alpaca demo"}
-              </Text>
-            )}
-          </TouchableOpacity>
-
-          {message ? (
-            <Text
-              style={{
-                marginTop: 10,
-                fontSize: 12,
-                color: status === "error" ? "#b91c1c" : C.muted,
-              }}
-            >
-              {message}
+      {/* Option 1: Alpaca */}
+      <TouchableOpacity 
+        style={{
+          flexDirection: "row", alignItems: "center", backgroundColor: "#fffbeb",
+          borderWidth: 1, borderColor: "#fde68a", borderRadius: 20, padding: 20,
+          marginBottom: 16, shadowColor: "#f59e0b", shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.1, shadowRadius: 8, elevation: 3
+        }}
+        onPress={connect}
+        disabled={status === "loading" || status === "ok"}
+        activeOpacity={0.8}
+      >
+        <View style={{ flex: 1, flexDirection: "row", alignItems: "center" }}>
+          <View style={{ width: 48, height: 48, borderRadius: 14, backgroundColor: "#fef3c7", alignItems: "center", justifyContent: "center", marginRight: 16 }}>
+            <Code2 color="#f59e0b" size={24} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontSize: 17, fontWeight: "800", color: "#b45309", marginBottom: 2 }}>
+              Alpaca Sandbox
             </Text>
-          ) : null}
+            <Text style={{ fontSize: 13, color: "#d97706", fontWeight: "600" }}>
+              {status === "ok" ? "Connected successfully" : "Sync paper trading account"}
+            </Text>
+          </View>
         </View>
-      </View>
+        {status === "loading" ? (
+          <ActivityIndicator color="#f59e0b" style={{ marginLeft: 12 }} />
+        ) : status === "ok" ? (
+          <Text style={{ fontSize: 20, marginLeft: 12 }}>✅</Text>
+        ) : (
+          <ChevronRight color="#f59e0b" size={24} style={{ marginLeft: 12 }} />
+        )}
+      </TouchableOpacity>
 
-      <View style={{ marginBottom: 24 }}>
-        <TouchableOpacity
-          onPress={onUseDemo}
-          style={{
-            borderRadius: 999,
-            paddingVertical: 10,
-            paddingHorizontal: 20,
-            alignItems: "center",
-            justifyContent: "center",
-            backgroundColor: "rgba(0,0,0,0.04)",
-          }}
-        >
-          <Text style={{ fontSize: 14, fontWeight: "600", color: C.text }}>
-            Skip for now – use demo portfolio
-          </Text>
-        </TouchableOpacity>
-      </View>
+      {/* Option 2: Skip to Demo */}
+      <TouchableOpacity 
+        style={{
+          flexDirection: "row", alignItems: "center", backgroundColor: "#f9fafb",
+          borderWidth: 1, borderColor: "#e5e7eb", borderRadius: 20, padding: 20
+        }}
+        onPress={onUseDemo}
+        disabled={status === "loading"}
+        activeOpacity={0.8}
+      >
+        <View style={{ flex: 1, flexDirection: "row", alignItems: "center" }}>
+          <View style={{ width: 48, height: 48, borderRadius: 14, backgroundColor: "#f3f4f6", alignItems: "center", justifyContent: "center", marginRight: 16 }}>
+            <Text style={{ fontSize: 20 }}>✨</Text>
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontSize: 17, fontWeight: "700", color: "#374151", marginBottom: 2 }}>
+              Use Demo Portfolio
+            </Text>
+            <Text style={{ fontSize: 13, color: "#6b7280", fontWeight: "500" }}>
+              Skip connection and explore
+            </Text>
+          </View>
+        </View>
+        <ArrowRight color="#8b5cf6" size={20} style={{ marginLeft: 12 }} />
+      </TouchableOpacity>
+
+      {/* Error Message */}
+      {message && status === "error" ? (
+        <Text style={{ marginTop: 24, fontSize: 13, color: "#ef4444", textAlign: "center", fontWeight: "600" }}>
+          {message}
+        </Text>
+      ) : null}
+      
     </View>
   );
 }

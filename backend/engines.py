@@ -164,7 +164,7 @@ async def generate_prophecy_text(data):
         return "Testing your options is a massive W. Keep tweaking the variables until you secure the bag."
     
 async def generate_gemini_prophecy(risk_level: int, goals_summary: str):
-    """Manifestation Board Prophecy via Official GenAI SDK"""
+    """Oracle Manifestation Board Prophecy via Official GenAI SDK"""
     try:
         model = genai.GenerativeModel('gemini-2.5-flash')
         
@@ -207,7 +207,7 @@ Provide professional financial advise.
 
 Return ONLY a JSON object with exactly these two keys:
 
-"message": A single sentence (max 20 words, lowercase only) diagnosing the biggest problem with their portfolio. Be specific to their actual numbers. Slightly snarky but friendly — like a bestie who happens to be a financial advisor. No hashtags.
+"message": A single sentence (max 20 words, proper punctuation) diagnosing the biggest problem with their portfolio. Be specific to their actual numbers. Slightly snarky but friendly — like a bestie who happens to be a financial advisor. No hashtags.
 
 "steps": 2-3 concrete actions they should take RIGHT NOW to improve this portfolio.
 Focus ONLY on what to do immediately
@@ -619,4 +619,14 @@ async def _build_trajectory_uncached(portfolio: dict) -> dict:
             "isFuture": True,
         })
 
-    return {"points": past + future}
+    # Calculate actual past growth (e.g., over the last 3-6 months)
+    historical_growth_rate = 0.0
+    if len(past) >= 2 and past[0]["v"] > 0:
+        historical_growth_rate = (past[-1]["v"] - past[0]["v"]) / past[0]["v"]
+
+    return {
+        "points": past + future,
+        "projected_monthly_growth": port_r,
+        "projected_annual_growth": port_r * 12,
+        "historical_growth": historical_growth_rate # What they actually achieved!
+    }
