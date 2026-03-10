@@ -186,10 +186,12 @@ export function Dashboard({ onNavigate, mode, useDemoAccount }: any) {
     }
   };
 
+  // Pull live wellness scores if available, else fall back to static values
   const wellnessMetrics: [string, number, string][] = [
-    ["Diversification", health?.diversification ?? 78, C.accent],
-    ["Liquidity", health?.liquidity ?? 65, "#10b981"],
-    ["Behavioral Resilience", health?.behavioral_resilience ?? 82, "#8b5cf6"],
+    ["Overall Score", health ? health.overall : 75, "#ea580c"],
+    ["Diversification", health ? health.diversification : 78, C.accent],
+    ["Liquidity", health ? health.liquidity : 65, "#10b981"],
+    ["Behavioral Resilience", health ? health.behavioral_resilience : 82, "#8b5cf6"],
   ];
 
   const [totalStreakPower, setTotalStreakPower] = useState<number | null>(null);
@@ -440,38 +442,47 @@ export function Dashboard({ onNavigate, mode, useDemoAccount }: any) {
         })}
       </View>
 
-      {/* Wellness */}
-      <Card style={{ marginBottom: 12 }}>
-        <Text
-          style={{
-            fontWeight: "700",
-            fontSize: 16,
-            color: C.text,
-            marginBottom: 4,
-          }}
-        >
-          Financial Wellness
-        </Text>
-        <Text style={{ fontSize: 12, color: C.muted, marginBottom: 16 }}>
-          Key health indicators
-        </Text>
-        {wellnessMetrics.map(([label, val, color]) => (
-          <View key={label} style={{ marginBottom: 14 }}>
-            <View
-              style={{
-                flexDirection: "row",
-                justifyContent: "space-between",
-                marginBottom: 6,
-              }}
-            >
-              <Text style={{ fontSize: 13, color: C.text }}>{label}</Text>
-              <Text style={{ fontSize: 13, color: C.muted, fontWeight: "600" }}>
-                {val}%
-              </Text>
-            </View>
-            <ProgressBar value={val} color={color} height={7} />
+{/* Wellness */}
+<Card style={{ marginBottom: 12 }}>
+        
+        {/* Header with giant overall score */}
+        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+          <View>
+            <Text style={{ fontWeight: "700", fontSize: 16, color: C.text, marginBottom: 2 }}>
+              Financial Wellness
+            </Text>
+            <Text style={{ fontSize: 12, color: C.muted }}>
+              Overall Health Score
+            </Text>
           </View>
-        ))}
+          <View style={{ backgroundColor: "#ea580c15", paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12 }}>
+            <Text style={{ fontSize: 24, fontWeight: "900", color: "#ea580c" }}>
+              {health ? health.overall : 75}%
+            </Text>
+          </View>
+        </View>
+
+        {/* Thick Main Bar */}
+        <ProgressBar value={health ? health.overall : 75} color="#ea580c" height={10} />
+
+        {/* Sub-metrics section */}
+        <View style={{ marginTop: 20, paddingTop: 16, borderTopWidth: 1, borderTopColor: "rgba(0,0,0,0.05)", gap: 14 }}>
+          {[
+            ["Diversification", health ? health.diversification : 78, C.accent],
+            ["Liquidity", health ? health.liquidity : 65, "#10b981"],
+            ["Behavioral Resilience", health ? health.behavioral_resilience : 82, "#8b5cf6"],
+          ].map(([label, val, color]) => (
+            <View key={label as string}>
+              <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 6 }}>
+                <Text style={{ fontSize: 13, color: C.text, fontWeight: "600" }}>{label as string}</Text>
+                <Text style={{ fontSize: 13, color: color as string, fontWeight: "800" }}>
+                  {val as number}%
+                </Text>
+              </View>
+              <ProgressBar value={val as number} color={color as string} height={6} />
+            </View>
+          ))}
+        </View>
       </Card>
 
       {/* Trajectory */}

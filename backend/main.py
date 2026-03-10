@@ -94,6 +94,12 @@ ALPACA_BASE_URL = os.getenv("ALPACA_BASE_URL", "https://paper-api.alpaca.markets
 # Optional: non-Alpaca wealth for full portfolio (sandbox). Alpaca = Stocks + Savings only.
 # SUPPLEMENTAL_REAL_ESTATE, SUPPLEMENTAL_CRYPTO, SUPPLEMENTAL_BONDS (numbers, default 0)
 
+_price_cache: dict = {
+    "crypto": {"data": None, "ts": 0},
+    "stocks": {"data": None, "ts": 0},
+}
+CACHE_TTL = 300  # 5 minutes
+
 # --- ROUTES ---
 
 @app.post("/api/demo/sabotage")
@@ -899,14 +905,17 @@ async def get_villain_advisor(req: VillainAdvisorRequest, db: Session = Depends(
 
 @app.get("/api/crypto/live-prices")
 async def get_live_crypto_prices():
+    now = time.time()
+    cached = _price_cache["crypto"]
+    if cached["data"] and (now - cached["ts"]) < CACHE_TTL:
+        return {"success": True, "data": cached["data"]}
+
     url = "https://api.coingecko.com/api/v3/simple/price"
     params = {
         "ids": "bitcoin,ethereum,solana",
         "vs_currencies": "sgd",
     }
-
     headers = {}
-
     if COINGECKO_API_KEY:
         headers["x-cg-api-key"] = COINGECKO_API_KEY
     else:
@@ -923,64 +932,48 @@ async def get_live_crypto_prices():
                 return {"success": True, "data": FALLBACK_DATA}
 
             data = resp.json()
-            # Extra safety: make sure expected keys exist
             if not all(k in data for k in ("bitcoin", "ethereum", "solana")):
                 print("CoinGecko: unexpected payload, using fallback")
                 return {"success": True, "data": FALLBACK_DATA}
 
-            return {
-                "success": True,
-                "data": [
-                    {
-                        "name": "Bitcoin",
-                        "symbol": "BTC",
-                        "price": float(data["bitcoin"]["sgd"]),
-                        "color": "#f59e0b",
-                        "icon": "₿",
-                    },
-                    {
-                        "name": "Ethereum",
-                        "symbol": "ETH",
-                        "price": float(data["ethereum"]["sgd"]),
-                        "color": "#627eea",
-                        "icon": "⟠",
-                    },
-                    {
-                        "name": "Solana",
-                        "symbol": "SOL",
-                        "price": float(data["solana"]["sgd"]),
-                        "color": "#14f195",
-                        "icon": "◎",
-                    },
-                ],
-            }
+            live_data = [
+                {"name": "Bitcoin",  "symbol": "BTC", "price": float(data["bitcoin"]["sgd"]),  "color": "#f59e0b", "icon": "₿"},
+                {"name": "Ethereum", "symbol": "ETH", "price": float(data["ethereum"]["sgd"]), "color": "#627eea", "icon": "⟠"},
+                {"name": "Solana",   "symbol": "SOL", "price": float(data["solana"]["sgd"]),   "color": "#14f195", "icon": "◎"},
+            ]
+            _price_cache["crypto"] = {"data": live_data, "ts": time.time()}
+            return {"success": True, "data": live_data}
+
         except Exception as e:
             print("API Fetch Error (CoinGecko) EXCEPTION:", repr(e))
             return {"success": True, "data": FALLBACK_DATA}
 
+
 @app.get("/api/stocks/live-prices")
 async def get_live_stock_prices():
+    now = time.time()
+    cached = _price_cache["stocks"]
+    if cached["data"] and (now - cached["ts"]) < CACHE_TTL:
+        return {"success": True, "data": cached["data"]}
+
     if not ALPHAVANTAGE_API_KEY:
         print("ALPHAVANTAGE_API_KEY not set, using fallback stock data")
         return {"success": True, "data": STOCK_FALLBACK_DATA}
 
     base_url = "https://www.alphavantage.co/query"
     symbols = [
-        ("Apple", "AAPL", "#22c55e"),
+        ("Apple",     "AAPL", "#22c55e"),
         ("Microsoft", "MSFT", "#3b82f6"),
-        ("Tesla", "TSLA", "#ef4444"),
+        ("Tesla",     "TSLA", "#ef4444"),
     ]
-
     results = []
-
-    # Fallback prices by symbol (used when rate-limited or missing data)
     fallback_by_symbol = {d["symbol"]: d["price"] for d in STOCK_FALLBACK_DATA}
 
     async with httpx.AsyncClient() as client:
         try:
             for i, (name, symbol, color) in enumerate(symbols):
                 if i > 0:
-                    await asyncio.sleep(1.2)  # Free tier: 1 request per second
+                    await asyncio.sleep(1.2)
                 params = {
                     "function": "GLOBAL_QUOTE",
                     "symbol": symbol,
@@ -990,7 +983,6 @@ async def get_live_stock_prices():
                 print(f"Alpha Vantage {symbol} status:", resp.status_code)
                 data = resp.json()
 
-                # Rate limit returns {"Information": "..."} instead of quote
                 if "Information" in data:
                     print(f"Alpha Vantage rate limit for {symbol}, using fallback price")
                     price = fallback_by_symbol.get(symbol, 0.0)
@@ -1003,17 +995,17 @@ async def get_live_stock_prices():
                     else:
                         price = float(price_str)
 
-                results.append(
-                    {
-                        "name": name,
-                        "symbol": symbol,
-                        "price": price,
-                        "color": color,
-                        "icon": "📈",
-                    }
-                )
+                results.append({
+                    "name": name,
+                    "symbol": symbol,
+                    "price": price,
+                    "color": color,
+                    "icon": "📈",
+                })
 
+            _price_cache["stocks"] = {"data": results, "ts": time.time()}
             return {"success": True, "data": results}
+
         except Exception as e:
             print("Alpha Vantage fetch error:", repr(e))
             return {"success": True, "data": STOCK_FALLBACK_DATA}
@@ -1171,11 +1163,11 @@ async def get_sandbox_portfolio(db: Session = Depends(get_db)):
 
     # 4. Pass the net_total to the AI trajectory engine
     trajectory = await build_portfolio_trajectory(
-        {"total": net_total, "assets": assets, "history": history, "health": health} # ✅ Changed
+        {"total": net_total, "assets": assets, "history": history, "health": health} 
     )
 
     return {
-        "total": net_total, # ✅ Changed
+        "total": net_total, 
         "gross_total": total,
         "debt": TOTAL_DEBT,
         "assets": assets,
@@ -1183,7 +1175,17 @@ async def get_sandbox_portfolio(db: Session = Depends(get_db)):
         "wealth_age": wealth_age,
         "villain_event_active": False,
         "history": trajectory.get("points", history),
+        
+        "growth_rates": {
+            "historical": trajectory.get("historical_growth", 0),
+            "projected_annual": trajectory.get("projected_annual_growth", 0)
+        }
     }
+
+class ReflectionCreate(BaseModel):
+    txName: str
+    amount: float
+# ... (rest of your file continues below)
 
 class ReflectionCreate(BaseModel):
     txName: str
