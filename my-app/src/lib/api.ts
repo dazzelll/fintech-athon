@@ -40,3 +40,16 @@ export const API_BASE_URL = (() => {
   return "http://localhost:8000/api";
 })();
 
+export const saveGoal = async (goalData: { title: string, target_amount: number, category: string, emoji: string }) => {
+  const response = await fetch(`${API_BASE_URL}/goals`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(goalData),
+  });
+  return response.json();
+};
+
+export const fetchGoals = async () => {
+  const response = await fetch(`${API_BASE_URL}/goals`);
+  return response.json();
+};

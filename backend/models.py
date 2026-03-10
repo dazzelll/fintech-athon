@@ -44,13 +44,13 @@ class PortfolioSnapshot(Base):
 class Goal(Base):
     __tablename__ = "goals"
     id = Column(String, primary_key=True, default=generate_uuid)
-    user_id = Column(String, ForeignKey("users.id"))
+    user_id = Column(String, ForeignKey("users.id"), nullable=True)
     title = Column(String, nullable=False)
-    emoji = Column(String, default='🎯')
     target_amount = Column(Numeric(15, 2))
-    current_amount = Column(Numeric(15, 2), default=0)
-    deadline = Column(Date)
-    category = Column(String)
+    current_amount = Column(Numeric(15, 2), default=0.0)
+    emoji = Column(String, default="🎯")
+    deadline = Column(String, nullable=True) # Changed from Date to String so "Dec 2027" works!
+    category = Column(String) 
     created_at = Column(DateTime, default=func.now())
 
 class VillainArcEvent(Base):

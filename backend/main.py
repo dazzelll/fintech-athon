@@ -1279,3 +1279,29 @@ async def get_reflections(db: Session = Depends(get_db)):
         }
         for r in rows
     ]
+
+class GoalCreate(BaseModel):
+    title: str
+    target_amount: float
+    category: str
+    emoji: str = "🎯"
+
+@app.post("/api/goals")
+async def create_goal(goal_in: GoalCreate, db: Session = Depends(get_db)):
+    """Save a new financial goal to the database"""
+    new_goal = models.Goal(
+        title=goal_in.title,
+        target_amount=goal_in.target_amount,
+        category=goal_in.category,
+        emoji=goal_in.emoji,
+        current_amount=0.0
+    )
+    db.add(new_goal)
+    db.commit()
+    db.refresh(new_goal)
+    return new_goal
+
+@app.get("/api/goals")
+async def get_goals(db: Session = Depends(get_db)):
+    """Fetch all saved goals"""
+    return db.query(models.Goal).order_by(models.Goal.created_at.desc()).all()

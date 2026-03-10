@@ -18,6 +18,13 @@ import { AssetDetailSheet } from "./AssetDetailSheet";
 import {HandCoins, Lightbulb, PiggyBank, PiggyBankIcon} from 'lucide-react-native'
 import { Icon, useRouter } from "expo-router";
 import { API_BASE_URL } from "../../lib/api";
+import { 
+  ShieldAlert, 
+  CreditCard, 
+  PlusCircle, 
+  LogOut, 
+  ChevronRight 
+} from 'lucide-react-native';
 
 // ─── WEALTH BLOB ──────────────────────────────────────────────────────────────
 export function WealthBlob({ onBack }: any) {
@@ -402,15 +409,18 @@ export function EventSimulator({ onBack }: any) {
   );
 }
 
+// ─── MOCK GOALS ───────────────────────────────────────────────────────────────
+const MOCK_GOALS = [
+  { id:"1", title:"House Down Payment", target:100000, current:45000, deadline:"Dec 2026", emoji:"🏠", cat:"purchase" },
+  { id:"2", title:"Portfolio $500K",    target:500000, current:185000, deadline:"Jun 2028", emoji:"📈", cat:"investment" },
+  { id:"3", title:"Emergency Fund",     target:60000,  current:55000,  deadline:"Jun 2026", emoji:"🛡️", cat:"savings" },
+];
+
 // ─── MANIFESTATION BOARD ──────────────────────────────────────────────────────
 export function ManifestationBoard({ onBack }: any) {
-  const [goals, setGoals] = useState([
-    { id:"1", title:"House Down Payment", target:100000, current:45000, deadline:"Dec 2026", emoji:"🏠", cat:"purchase" },
-    { id:"2", title:"Portfolio $500K",    target:500000, current:185000, deadline:"Jun 2028", emoji:"📈", cat:"investment" },
-    { id:"3", title:"Emergency Fund",     target:60000,  current:55000,  deadline:"Jun 2026", emoji:"🛡️", cat:"savings" },
-  ]);
+  const [goals, setGoals] = useState<any[]>(MOCK_GOALS);
   
-  // New Risk Level State: 1 to 10
+  // Risk Level State: 1 to 10
   const [riskLevel, setRiskLevel]   = useState(5);
   
   const [adding, setAdding]         = useState(false);
@@ -423,12 +433,62 @@ export function ManifestationBoard({ onBack }: any) {
   
   const catC: any = { purchase:"#10b981", investment:"#3b82f6", savings:"#8b5cf6" };
 
-  const add = () => {
+  // Fetch saved goals when the screen loads
+  useEffect(() => {
+    fetch(`${API_BASE_URL}/goals`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data)) {
+          // Map database rows to the frontend format
+          const dbGoals = data.map((g: any) => ({
+            id: g.id,
+            title: g.title,
+            target: g.target_amount || 0,
+            current: g.current_amount || 0,
+            deadline: nd || "2027", // Fallback deadline
+            emoji: g.emoji || "🎯",
+            cat: g.category || "savings",
+          }));
+          // Stitch DB goals at the top, mock goals at the bottom
+          setGoals([...dbGoals, ...MOCK_GOALS]);
+        }
+      })
+      .catch((err) => console.error("Failed to fetch goals:", err));
+  }, []);
+
+  const add = async () => {
     if (nt && na) {
-      setGoals([...goals, {
-        id: Date.now()+"", title: nt, target: parseFloat(na),
-        current: 0, deadline: nd, emoji: "🎯", cat: "savings"
-      }]);
+      const targetAmount = parseFloat(na) || 0;
+      
+      // 1. Instantly show it on screen
+      const newGoal = {
+        id: Date.now() + "", 
+        title: nt, 
+        target: targetAmount,
+        current: 0, 
+        deadline: nd || "2027", 
+        emoji: "🎯", 
+        cat: "savings"
+      };
+      setGoals([newGoal, ...goals]);
+
+      // 2. Send it to the Python backend to save permanently
+      try {
+        await fetch(`${API_BASE_URL}/goals`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title: nt,
+            target_amount: targetAmount,
+            category: "savings",
+            emoji: "🎯"
+          })
+        });
+      } catch (err) {
+        console.error("Failed to save goal:", err);
+      }
+
+      // 3. Clear form
       setNt(""); setNa(""); setNd("2027"); setAdding(false);
     }
   };
@@ -438,7 +498,6 @@ export function ManifestationBoard({ onBack }: any) {
     const monthly = ((goal.target - goal.current) / 12).toFixed(0);
 
     if (riskLevel >= 8) { 
-      // HIGH RISK (8-10)
       const agg: any = {
         purchase: [
           `Consider a 5% down payment instead of 20% and invest the rest in high-growth ETFs`,
@@ -458,7 +517,6 @@ export function ManifestationBoard({ onBack }: any) {
       };
       return agg[goal.cat] || agg.savings;
     } else if (riskLevel <= 3) { 
-      // LOW RISK (1-3)
       const cons: any = {
         purchase: [
           `Save $${monthly}/mo in a capital-guaranteed CD or T-Bill ladder`,
@@ -478,7 +536,6 @@ export function ManifestationBoard({ onBack }: any) {
       };
       return cons[goal.cat] || cons.savings;
     } else { 
-      // MODERATE RISK (4-7)
       const mod: any = {
         purchase: [
           `Invest $${monthly}/mo in a 50/50 mix of HYSA and broad index funds`,
@@ -515,7 +572,6 @@ export function ManifestationBoard({ onBack }: any) {
           "Content-Type": "application/json" 
         },
         body: JSON.stringify({
-          // THE FIX: Translate the number into the string the backend expects!
           riskLevel: riskLevel,
           goalsSummary: goalsSummary
         })
@@ -523,8 +579,6 @@ export function ManifestationBoard({ onBack }: any) {
   
       const data = await res.json();
       
-      console.log("📦 PACKAGE RECEIVED FROM PYTHON:", data);
-
       if (data.success) {
         setProphecy(data.prophecyText);
       } else {
@@ -678,8 +732,22 @@ export function ManifestationBoard({ onBack }: any) {
           <Text style={{ fontWeight:"700", fontSize:15, color:C.text, marginBottom:14 }}>New Goal</Text>
           <TextInput placeholder="Goal name..." value={nt} onChangeText={setNt}
             style={styles.input} placeholderTextColor={C.muted} />
-          <TextInput placeholder="Target amount..." keyboardType="numeric" value={na} onChangeText={setNa}
-            style={styles.input} placeholderTextColor={C.muted} />
+          
+          <View style={{
+            flexDirection: "row", alignItems: "center", backgroundColor: "rgba(0,0,0,0.04)",
+            borderColor: C.cardBorder, borderWidth: 1, borderRadius: 12, paddingHorizontal: 12, marginBottom: 8
+          }}>
+            <Text style={{ color: C.muted, fontSize: 14, marginRight: 4 }}>$</Text>
+            <TextInput
+              value={na}
+              onChangeText={(txt) => setNa(txt.replace(/[^0-9.]/g, ""))}
+              keyboardType="numeric"
+              placeholder="Target amount..."
+              placeholderTextColor={C.muted}
+              style={{ flex: 1, fontSize: 15, fontWeight: "700", color: C.text, paddingVertical: 10 }}
+            />
+          </View>
+
           <TextInput placeholder="Deadline (e.g. Dec 2027)..." value={nd} onChangeText={setNd}
             style={[styles.input, { marginBottom:14 }]} placeholderTextColor={C.muted} />
           <View style={{ flexDirection:"row", gap:8 }}>
@@ -2310,16 +2378,16 @@ const fetchRefs = async () => {
   );
 }
 
-// ─── MENU ─────────────────────────────────────────────────────────────────────
+// ─── MENU (SETTINGS) ──────────────────────────────────────────────────────────
 export function Menu({ mode, onModeToggle, onNavigate }: any) {
-
   const [maxSpend, setMaxSpend] = useState<string>("20000");
   const [loadingLimit, setLoadingLimit] = useState(true);
   const [savingLimit, setSavingLimit] = useState(false);
   const [showLimitModal, setShowLimitModal] = useState(false);
   const router = useRouter();
+  
   const [totalDebt, setTotalDebt] = useState<string>("0");
-  const [loadingDebt, setLoadingDebt] = useState(true);   // ← add this
+  const [loadingDebt, setLoadingDebt] = useState(true);
   const [savingDebt, setSavingDebt] = useState(false);
   const [showDebtModal, setShowDebtModal] = useState(false); 
 
@@ -2394,299 +2462,178 @@ export function Menu({ mode, onModeToggle, onNavigate }: any) {
     : `$${Number(maxSpend || "0").toLocaleString()}`;
 
   return (
-    <ScrollView contentContainerStyle={{ paddingBottom: 100, paddingTop: 30 }}>
-      <Text
-        style={{
-          fontWeight: "800",
-          fontSize: 24,
-          color: C.text,
-          marginBottom: 10,
+    <ScrollView contentContainerStyle={{ paddingBottom: 100, paddingTop: 20 }} showsVerticalScrollIndicator={false}>
+      
+      {/* ── 1. Profile Header ── */}
+      <View style={{ alignItems: 'center', marginBottom: 36, marginTop: 10 }}>
+        <View style={{ 
+          width: 86, height: 86, borderRadius: 43, backgroundColor: '#3b82f6', 
+          alignItems: 'center', justifyContent: 'center', marginBottom: 16,
+          shadowColor: '#3b82f6', shadowOffset: {width: 0, height: 6}, shadowOpacity: 0.3, shadowRadius: 10, elevation: 8
+        }}>
+          <Text style={{ fontSize: 40 }}>👤</Text>
+        </View>
+        <Text style={{ fontSize: 24, fontWeight: '900', color: C.text, letterSpacing: -0.5 }}>Blob Blobberson</Text>
+        <View style={{ backgroundColor: 'rgba(0,0,0,0.04)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 99, marginTop: 8 }}>
+          <Text style={{ fontSize: 13, color: C.muted, fontWeight: '600' }}>blobby@gmail.com</Text>
+        </View>
+      </View>
+
+      {/* ── 2. Preferences Group ── */}
+      <Text style={{ fontSize: 12, fontWeight: '800', color: C.muted, textTransform: 'uppercase', letterSpacing: 1.2, marginBottom: 8, marginLeft: 8 }}>
+        Preferences
+      </Text>
+      <Card style={{ padding: 0, overflow: 'hidden', marginBottom: 24 }}>
+        
+        {/* Villain Arc Limit Row */}
+        <TouchableOpacity 
+          onPress={() => setShowLimitModal(true)} 
+          activeOpacity={0.7}
+          style={{ flexDirection: 'row', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.04)' }}
+        >
+          <View style={{ width: 38, height: 38, borderRadius: 10, backgroundColor: '#8b5cf615', alignItems: 'center', justifyContent: 'center', marginRight: 14 }}>
+            <ShieldAlert size={20} color="#8b5cf6" />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontSize: 15, fontWeight: '700', color: C.text }}>Villain Arc Limit</Text>
+            <Text style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>Spending trigger threshold</Text>
+          </View>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <Text style={{ fontSize: 15, fontWeight: '700', color: C.text, marginRight: 6 }}>{currentLimitDisplay}</Text>
+            <ChevronRight size={18} color={C.muted} />
+          </View>
+        </TouchableOpacity>
+
+        {/* Total Debt Row */}
+        <TouchableOpacity 
+          onPress={() => setShowDebtModal(true)} 
+          activeOpacity={0.7}
+          style={{ flexDirection: 'row', alignItems: 'center', padding: 16 }}
+        >
+          <View style={{ width: 38, height: 38, borderRadius: 10, backgroundColor: '#ef444415', alignItems: 'center', justifyContent: 'center', marginRight: 14 }}>
+            <CreditCard size={20} color="#ef4444" />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontSize: 15, fontWeight: '700', color: C.text }}>Total Debt</Text>
+            <Text style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>Deducted from gross wealth</Text>
+          </View>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <Text style={{ fontSize: 15, fontWeight: '700', color: Number(totalDebt) > 0 ? '#ef4444' : C.text, marginRight: 6 }}>
+              {loadingDebt ? "..." : `$${Number(totalDebt || "0").toLocaleString()}`}
+            </Text>
+            <ChevronRight size={18} color={C.muted} />
+          </View>
+        </TouchableOpacity>
+      </Card>
+
+      {/* ── 3. Portfolio Management Group ── */}
+      <Text style={{ fontSize: 12, fontWeight: '800', color: C.muted, textTransform: 'uppercase', letterSpacing: 1.2, marginBottom: 8, marginLeft: 8 }}>
+        Portfolio
+      </Text>
+      <Card style={{ padding: 0, overflow: 'hidden', marginBottom: 32 }}>
+        <TouchableOpacity 
+          onPress={() => onNavigate("manual-assets")} 
+          activeOpacity={0.7}
+          style={{ flexDirection: 'row', alignItems: 'center', padding: 16 }}
+        >
+          <View style={{ width: 38, height: 38, borderRadius: 10, backgroundColor: '#10b98115', alignItems: 'center', justifyContent: 'center', marginRight: 14 }}>
+            <PlusCircle size={20} color="#10b981" />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontSize: 15, fontWeight: '700', color: C.text }}>Manual Assets</Text>
+            <Text style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>Log real estate, private equity, etc.</Text>
+          </View>
+          <ChevronRight size={18} color={C.muted} />
+        </TouchableOpacity>
+      </Card>
+
+      {/* ── 4. Danger Zone ── */}
+      <TouchableOpacity
+        onPress={() => router.replace("/login")}
+        activeOpacity={0.8}
+        style={{ 
+          flexDirection: 'row', alignItems: 'center', justifyContent: 'center', 
+          padding: 16, backgroundColor: '#ef444410', borderRadius: 16, borderWidth: 1, borderColor: '#ef444430' 
         }}
       >
-        Settings
-      </Text>
-      <Card>
-        <Text
-          style={{
-            fontWeight: "700",
-            fontSize: 12,
-            color: C.muted,
-            marginBottom: 12,
-            textTransform: "uppercase",
-            letterSpacing: 0.8,
-          }}
-        >
-          Account
+        <LogOut size={20} color="#ef4444" style={{ marginRight: 8 }} />
+        <Text style={{ fontWeight: "700", fontSize: 16, color: "#ef4444" }}>
+          Sign Out
         </Text>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 14 }}>
-          <View
-            style={{
-              width: 48,
-              height: 48,
-              borderRadius: 24,
-              backgroundColor: "#3b82f6",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <Text style={{ fontSize: 20 }}>👤</Text>
-          </View>
-          <View>
-            <Text style={{ fontWeight: "700", fontSize: 15, color: C.text }}>
-              Blob Blobberson
-            </Text>
-            <Text style={{ fontSize: 12, color: C.muted }}>
-              blobby@gmail.com
-            </Text>
-          </View>
-        </View>
-      </Card>
-      <Card>
-        <Text
-          style={{
-            fontWeight: "700",
-            fontSize: 14,
-            color: C.text,
-            marginBottom: 6,
-          }}
-        >
-          Set Savings Spending Limit
-        </Text>
-        <View
-        >
-          <TouchableOpacity
-            onPress={() => setShowLimitModal(true)}
-            activeOpacity={0.7}
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "space-between",
-              paddingVertical: 10,
-            }}
-          >
-            <View style={{ flex: 1, marginRight: 8 }}>
-              <Text style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>
-                Adjust how much you can spend before being reminded
-              </Text>
-            </View>
-            <Text
-              style={{
-                fontSize: 14,
-                fontWeight: "700",
-                color: C.text,
-              }}
-            >
-              {currentLimitDisplay}
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </Card>
-      <Card>
-  <Text style={{ fontWeight: "700", fontSize: 14, color: C.text, marginBottom: 6 }}>
-    Total Debt
-  </Text>
-  <TouchableOpacity
-    onPress={() => setShowDebtModal(true)}
-    activeOpacity={0.7}
-    style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 10 }}
-  >
-    <Text style={{ fontSize: 11, color: C.muted, flex: 1, marginRight: 8 }}>
-      Loans, credit cards, mortgage — deducted from net wealth
-    </Text>
-    <Text style={{ fontSize: 14, fontWeight: "700", color: Number(totalDebt) > 0 ? "#ef4444" : C.text }}>
-      {loadingDebt ? "Loading..." : `$${Number(totalDebt || "0").toLocaleString()}`}
-    </Text>
-  </TouchableOpacity>
-</Card>
-      <Card>
-        <TouchableOpacity
-          onPress={() => onNavigate("manual-assets")}
-          activeOpacity={0.75}
-          style={{
-            paddingVertical: 10,
-          }}
-        >
-          <Text
-            style={{
-              fontWeight: "700",
-              fontSize: 14,
-              color: C.text,
-              marginBottom: 4,
-            }}
-          >
-            Manually Add to Portfolio
-          </Text>
-        </TouchableOpacity>
-      </Card>
-      <Card style={{ backgroundColor: "#fca5a5" }}>
-        <TouchableOpacity
-          onPress={() => router.replace("/login")}
-          activeOpacity={0.8}
-          style={{ flexDirection: "row", alignItems: "center", justifyContent: "center", paddingVertical: 10 }}
-        >
-          <Text style={{ fontWeight: "700", fontSize: 20, color: "white" }}>
-            Sign Out
-          </Text>
-        </TouchableOpacity>
-      </Card>
-      <Modal
-        visible={showLimitModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowLimitModal(false)}
-      >
+      </TouchableOpacity>
+
+      {/* ── Modals (Unchanged from your original code) ── */}
+      <Modal visible={showLimitModal} transparent animationType="fade" onRequestClose={() => setShowLimitModal(false)}>
         <View style={styles.modalOverlay}>
-          <View
-            style={[
-              styles.modalSheet,
-              {
-                padding: 20,
-              },
-            ]}
-          >
-            <Text
-              style={{
-                fontWeight: "700",
-                fontSize: 16,
-                color: C.text,
-                marginBottom: 8,
-              }}
-            >
-              Adjust villain limit
+          <View style={[styles.modalSheet, { padding: 20 }]}>
+            <Text style={{ fontWeight: "700", fontSize: 16, color: C.text, marginBottom: 8 }}>Adjust villain limit</Text>
+            <Text style={{ fontSize: 12, color: C.muted, marginBottom: 12 }}>
+              How much Savings you're comfortable draining before the villain arc warnings light up.
             </Text>
-            <Text
-              style={{
-                fontSize: 12,
-                color: C.muted,
-                marginBottom: 12,
-              }}
-            >
-              How much Savings you&apos;re comfortable draining before the villain arc warnings light up.
-            </Text>
-            <View
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                backgroundColor: "rgba(0,0,0,0.04)",
-                borderColor: C.cardBorder,
-                borderWidth: 1,
-                borderRadius: 12,
-                paddingHorizontal: 12,
-                paddingVertical: 8,
-                marginBottom: 14,
-              }}
-            >
+            <View style={{
+              flexDirection: "row", alignItems: "center", backgroundColor: "rgba(0,0,0,0.04)",
+              borderColor: C.cardBorder, borderWidth: 1, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8, marginBottom: 14
+            }}>
               <Text style={{ color: C.muted, fontSize: 14, marginRight: 4 }}>$</Text>
               <TextInput
                 value={maxSpend}
-                onChangeText={(txt) =>
-                  setMaxSpend(txt.replace(/[^0-9]/g, ""))
-                }
+                onChangeText={(txt) => setMaxSpend(txt.replace(/[^0-9]/g, ""))}
                 keyboardType="numeric"
-                style={{
-                  flex: 1,
-                  fontSize: 15,
-                  fontWeight: "700",
-                  color: C.text,
-                  paddingVertical: 0,
-                }}
-                placeholder="20000"
-                placeholderTextColor={C.muted}
+                style={{ flex: 1, fontSize: 15, fontWeight: "700", color: C.text, paddingVertical: 0 }}
+                placeholder="20000" placeholderTextColor={C.muted}
               />
             </View>
             <View style={{ flexDirection: "row", gap: 8 }}>
               <TouchableOpacity
-                onPress={async () => {
-                  await saveLimit();
-                  setShowLimitModal(false);
-                }}
+                onPress={async () => { await saveLimit(); setShowLimitModal(false); }}
                 disabled={savingLimit || loadingLimit}
-                style={[
-                  styles.primaryButton,
-                  {
-                    flex: 1,
-                    backgroundColor:
-                      savingLimit || loadingLimit ? "rgba(0,0,0,0.1)" : "#8b5cf6",
-                  },
-                ]}
+                style={[styles.primaryButton, { flex: 1, backgroundColor: savingLimit || loadingLimit ? "rgba(0,0,0,0.1)" : "#8b5cf6" }]}
               >
-                <Text style={styles.primaryButtonText}>
-                  {savingLimit ? "Saving..." : "Save limit"}
-                </Text>
+                <Text style={styles.primaryButtonText}>{savingLimit ? "Saving..." : "Save limit"}</Text>
               </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => setShowLimitModal(false)}
-                style={[
-                  styles.outlineButton,
-                  {
-                    flex: 1,
-                    marginBottom: 0,
-                  },
-                ]}
-              >
-                <Text style={{ fontSize: 14, color: C.muted, fontWeight: "600" }}>
-                  Cancel
-                </Text>
+              <TouchableOpacity onPress={() => setShowLimitModal(false)} style={[styles.outlineButton, { flex: 1, marginBottom: 0 }]}>
+                <Text style={{ fontSize: 14, color: C.muted, fontWeight: "600" }}>Cancel</Text>
               </TouchableOpacity>
             </View>
           </View>
         </View>
       </Modal>
-      <Modal
-  visible={showDebtModal}
-  transparent
-  animationType="fade"
-  onRequestClose={() => setShowDebtModal(false)}
->
-  <View style={styles.modalOverlay}>
-    <View style={[styles.modalSheet, { padding: 20 }]}>
-      <Text style={{ fontWeight: "700", fontSize: 16, color: C.text, marginBottom: 8 }}>
-        Total Debt
-      </Text>
-      <Text style={{ fontSize: 12, color: C.muted, marginBottom: 12 }}>
-        Enter your total debt (loans, credit cards, mortgage). This will be subtracted from your gross wealth to show your true net worth.
-      </Text>
-      <View style={{
-        flexDirection: "row",
-        alignItems: "center",
-        backgroundColor: "rgba(0,0,0,0.04)",
-        borderColor: C.cardBorder,
-        borderWidth: 1,
-        borderRadius: 12,
-        paddingHorizontal: 12,
-        paddingVertical: 8,
-        marginBottom: 14,
-      }}>
-        <Text style={{ color: C.muted, fontSize: 14, marginRight: 4 }}>$</Text>
-        <TextInput
-          value={totalDebt}
-          onChangeText={(txt) => setTotalDebt(txt.replace(/[^0-9]/g, ""))}
-          keyboardType="numeric"
-          style={{ flex: 1, fontSize: 15, fontWeight: "700", color: "#ef4444", paddingVertical: 0 }}
-          placeholder="0"
-          placeholderTextColor={C.muted}
-        />
-      </View>
-      <View style={{ flexDirection: "row", gap: 8 }}>
-        <TouchableOpacity
-          onPress={async () => { await saveDebt(); setShowDebtModal(false); }}
-          disabled={savingDebt}
-          style={[styles.primaryButton, { flex: 1, backgroundColor: savingDebt ? "rgba(0,0,0,0.1)" : "#ef4444" }]}
-        >
-          <Text style={styles.primaryButtonText}>
-            {savingDebt ? "Saving..." : "Save debt"}
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          onPress={() => setShowDebtModal(false)}
-          style={[styles.outlineButton, { flex: 1, marginBottom: 0 }]}
-        >
-          <Text style={{ fontSize: 14, color: C.muted, fontWeight: "600" }}>Cancel</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
-  </View>
-</Modal>
+
+      <Modal visible={showDebtModal} transparent animationType="fade" onRequestClose={() => setShowDebtModal(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalSheet, { padding: 20 }]}>
+            <Text style={{ fontWeight: "700", fontSize: 16, color: C.text, marginBottom: 8 }}>Total Debt</Text>
+            <Text style={{ fontSize: 12, color: C.muted, marginBottom: 12 }}>
+              Enter your total debt (loans, credit cards, mortgage). This will be subtracted from your gross wealth to show your true net worth.
+            </Text>
+            <View style={{
+              flexDirection: "row", alignItems: "center", backgroundColor: "rgba(0,0,0,0.04)",
+              borderColor: C.cardBorder, borderWidth: 1, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8, marginBottom: 14
+            }}>
+              <Text style={{ color: C.muted, fontSize: 14, marginRight: 4 }}>$</Text>
+              <TextInput
+                value={totalDebt}
+                onChangeText={(txt) => setTotalDebt(txt.replace(/[^0-9]/g, ""))}
+                keyboardType="numeric"
+                style={{ flex: 1, fontSize: 15, fontWeight: "700", color: "#ef4444", paddingVertical: 0 }}
+                placeholder="0" placeholderTextColor={C.muted}
+              />
+            </View>
+            <View style={{ flexDirection: "row", gap: 8 }}>
+              <TouchableOpacity
+                onPress={async () => { await saveDebt(); setShowDebtModal(false); }}
+                disabled={savingDebt}
+                style={[styles.primaryButton, { flex: 1, backgroundColor: savingDebt ? "rgba(0,0,0,0.1)" : "#ef4444" }]}
+              >
+                <Text style={styles.primaryButtonText}>{savingDebt ? "Saving..." : "Save debt"}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => setShowDebtModal(false)} style={[styles.outlineButton, { flex: 1, marginBottom: 0 }]}>
+                <Text style={{ fontSize: 14, color: C.muted, fontWeight: "600" }}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
