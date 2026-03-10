@@ -223,17 +223,28 @@ async def get_portfolio(db: Session = Depends(get_db)):
     base_history = copy.deepcopy(MOCK_HISTORY_SEED)
     base_history[-1]["v"] = total  # anchor to live total
 
+# 1. Calculate net total first!
+    net_total = max(0, total - TOTAL_DEBT)
+
+    base_history = copy.deepcopy(MOCK_HISTORY_SEED)
+    base_history[-1]["v"] = net_total  # anchor to live net total
+
     # Try to build a 6‑month past+future trajectory; fall back gracefully if anything breaks.
     try:
         trajectory = await build_portfolio_trajectory(
-            {"total": total, "assets": assets, "history": base_history, "health": health}
+            {"total": net_total, "assets": assets, "history": base_history, "health": health}
         )
         history = trajectory.get("points", base_history)
+        
+        # 🟢 ADD THE GROWTH RATES HERE
+        growth_rates = {
+            "historical": trajectory.get("historical_growth", 0),
+            "projected_annual": trajectory.get("projected_annual_growth", 0)
+        }
     except Exception as e:
         print("Trajectory engine error in /api/portfolio:", repr(e))
         history = base_history
-    
-    net_total = max(0, total - TOTAL_DEBT)
+        growth_rates = {"historical": 0, "projected_annual": 0}
 
     return {
         "total": net_total,
@@ -244,6 +255,7 @@ async def get_portfolio(db: Session = Depends(get_db)):
         "wealth_age": wealth_age,
         "villain_event_active": villain_event_active,
         "history": history,
+        "growth_rates": growth_rates, # 🟢 RETURN IT TO THE FRONTEND
     }
 
 class SandboxPortfolio(BaseModel):
@@ -1147,19 +1159,25 @@ async def get_sandbox_portfolio(db: Session = Depends(get_db)):
         else:
             a["mood"] = "neutral"
 
-    # Prefer Alpaca-derived 6M history when present, else fall back to mock.
-    # 1. Define the net total first     
-    net_total = total - TOTAL_DEBT
+# 1. Define the net total first     
+    net_total = max(0, total - TOTAL_DEBT)
 
-    # 2. Use net_total for the mock history
+    # 2. Combine Alpaca history WITH Mock history point-by-point
     import copy as _copy
     _base_history = _copy.deepcopy(MOCK_HISTORY_SEED)
-    _base_history[-1]["v"] = net_total  # anchor last point to live net worth
-    history = sandbox.history or _base_history
+    
+    history = []
+    if sandbox.history and len(sandbox.history) == len(_base_history):
+        for i in range(len(_base_history)):
+            # Add the mock baseline to the Alpaca live equity
+            combined_val = _base_history[i]["v"] + float(sandbox.history[i].get("v", 0))
+            history.append({"m": _base_history[i]["m"], "v": combined_val})
+    else:
+        history = _base_history
 
-    # 3. Ensure the last history point matches net worth
+    # 3. Ensure the last history point perfectly matches the live net worth
     if history:
-        history = history[:-1] + [{"m": history[-1]["m"], "v": net_total}] # ✅ Changed
+        history[-1]["v"] = net_total
 
     # 4. Pass the net_total to the AI trajectory engine
     trajectory = await build_portfolio_trajectory(
