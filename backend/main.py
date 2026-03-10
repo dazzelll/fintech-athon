@@ -477,15 +477,22 @@ async def ping_streak(req: StreakPing, db: Session = Depends(get_db)):
     if not s:
         raise HTTPException(status_code=404, detail="Unknown streak_type")
 
-    today = date.today()
-    if s.last_updated == today:
+    today = date.today()    
+    
+    # 🟢 BUG FIX: Prevent date vs datetime mismatch crash
+    last = s.last_updated
+    if hasattr(last, 'date'):
+        last = last.date()
+        
+    if last == today:
         # already counted today
         pass
     else:
-        if s.last_updated == today - timedelta(days=1):
+        if last == today - timedelta(days=1):
             s.current_count = (s.current_count or 0) + 1
         else:
             s.current_count = 1
+            
         s.best_count = max(s.best_count or 0, s.current_count)
         s.last_updated = today
 
@@ -1264,27 +1271,33 @@ async def log_reflection(entry: ReflectionCreate, db: Session = Depends(get_db))
         raise HTTPException(status_code=500, detail=f"Failed to save reflection: {repr(e)}")
     
 
-    # 2. Only then handle learning streak in a separate clean operation
+# 2. Only then handle learning streak in a separate clean operation
     if (entry.emotion or "").strip().lower() == "learning":
         try:
             _ensure_default_streaks(db)
-            db.expire_all()
             
             s = db.query(models.Streak).filter(
                 models.Streak.streak_type == "learning",
                 models.Streak.user_id.is_(None)
             ).first()
-            print("DEBUG streak row found:", s)
+            
             if s:
                 today = date.today()
+                
+                # 🟢 BUG FIX: Safely parse last_updated so datetime objects match date objects!
                 last = s.last_updated
-                print("DEBUG today:", today, "last_updated:", last)  # ← what are the dates?
-                print("DEBUG current_count before:", s.current_count)  # ← what's the count?
+                if hasattr(last, 'date'):
+                    last = last.date()
+                
+                current = s.current_count or 0
+
                 if last == today:
-                    print("DEBUG: already counted today, skipping")
-                    pass  # already counted today
+                    if current == 0:
+                        s.current_count = 1  # Force restore if it was previously broken
+                    else:
+                        print("DEBUG: already counted today, skipping")
                 elif last == today - timedelta(days=1):
-                    s.current_count = (s.current_count or 0) + 1
+                    s.current_count = current + 1
                     print("DEBUG: incremented to", s.current_count)
                 else:
                     s.current_count = 1
@@ -1292,12 +1305,12 @@ async def log_reflection(entry: ReflectionCreate, db: Session = Depends(get_db))
 
                 s.best_count = max(s.best_count or 0, s.current_count)
                 s.last_updated = today
+                
                 db.add(s)
                 db.commit()
                 db.refresh(s)
-                print("DEBUG streak saved, current_count:", s.current_count)  # ← confirm
+                print("DEBUG streak saved, current_count:", s.current_count)
         except Exception as e:
-            print("DEBUG streak FAILED:", repr(e))
             print("Learning streak update error:", repr(e))
             db.rollback()
 
