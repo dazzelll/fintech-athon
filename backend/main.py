@@ -788,38 +788,66 @@ class SimulatorRequest(BaseModel):
 
 
 @app.post("/api/simulator/run")
-async def simulator_run(req: SimulatorRequest):
+async def simulator_run(req: SimulatorRequest, db: Session = Depends(get_db)):
+    # 1. Fetch current data first
+    portfolio_data = await get_sandbox_portfolio(db)
+    current_net_worth = portfolio_data.get("total", 0.0)
+
+    # 2. Extract AI parameters (This defines your years, monthly, etc.)
     params = await extract_simulation_parameters(req.scenario)
 
-    wealth = 487500
-    annual_return_rate = 0.08
-
+    # 3. ASSIGN VARIABLES (This prevents the UnboundLocalError)
+    # Use .get(key, default) so that if Gemini fails, the code doesn't crash
     years = params.get("years_to_simulate", 5)
     monthly = params.get("monthly_contribution", 500)
     expense = params.get("one_time_expense", 0)
     expense_yr = params.get("expense_year", 1)
     pause_months = params.get("income_pause_months", 0)
+    burn_rate = params.get("living_expense_burn", 3500)
 
-    projected = wealth
+    # 4. THE VIBE CHECK (Fixing the "growth doesn't make sense" logic)
+    scenario_text = req.scenario.lower()
+    
+    # If the scenario is bad, we reduce the return rate to 2% (Recession/Stress mode)
+    if any(word in scenario_text for word in ["fired", "lost", "jobless", "crash", "emergency"]):
+        annual_return_rate = 0.02 
+    else:
+        annual_return_rate = 0.08  # Normal "Main Character" growth
+
+    # 5. THE CALCULATION LOOP
+    # Now 'years' is guaranteed to have a value!
+    projected = current_net_worth
     for y in range(1, years + 1):
+        # Apply market growth
         projected *= (1 + annual_return_rate)
+        
         months_saving = 12
+        months_burning = 0
+        
         if y == 1:
-            months_saving -= pause_months
-        projected += (monthly * max(0, months_saving))
+            months_saving = max(0, 12 - pause_months)
+            months_burning = min(12, pause_months)
+        
+        # Add savings and subtract the BURN
+        projected += (monthly * months_saving)
+        projected -= (burn_rate * months_burning)
+        
         if y == expense_yr:
             projected -= expense
 
     projected = max(0, round(projected))
 
+    # 6. GENERATE PROPHECY
     prophecy = await generate_prophecy_text({
         "projectedWealth": projected,
+        "startingWealth": current_net_worth,
         "scenario": req.scenario
     })
 
     return {
+        "startingWealth": current_net_worth,
         "projectedWealth": projected,
-        "softLifeScore": min(100, round((projected / 500000) * 80)),
+        "softLifeScore": min(100, round((projected / 1000000) * 100)),
         "prophecyText": prophecy,
         "extractedParams": params
     }

@@ -115,44 +115,61 @@ def calculate_wealth_age(total_wealth, real_age, health_score):
 async def extract_simulation_parameters(scenario_text: str):
     """Uses Gemini to turn a human sentence into strict math variables."""
     try:
-        model = genai.GenerativeModel('gemini-2.5-flash', generation_config={"response_mime_type": "application/json"})
+        model = genai.GenerativeModel('gemini-2.5-flash', 
+                                      generation_config={"response_mime_type": "application/json"})
         
         prompt = f"""
-        You are a financial data parser. Read the user's scenario and extract the parameters into JSON.
-        Assume a default timeframe of 5 years and a default monthly contribution of $500 if not specified.
-
+        You are a financial data parser. Read the user's scenario and extract parameters into JSON.
+        
         User Scenario: "{scenario_text}"
 
+        Rules for Extraction:
+        1. Default timeframe is 5 years.
+        2. If the user mentions a specific salary they are losing (e.g., $30k/mo), set 'living_expense_burn' to 50% of that salary to reflect their lifestyle cost.
+        3. 'income_pause_months' should reflect the duration of the job loss mentioned.
+
         Return ONLY a JSON object with these exact keys:
-        - "years_to_simulate" (int): How many years to project. Default 5.
-        - "monthly_contribution" (int): How much they save per month. Default 500.
-        - "one_time_expense" (int): Any big purchase mentioned (e.g., car, vacation). Default 0.
-        - "expense_year" (int): Which year the expense happens. Default 1.
-        - "income_pause_months" (int): How many months they are out of a job or not saving. Default 0.
+        - "years_to_simulate" (int)
+        - "monthly_contribution" (int)
+        - "one_time_expense" (int)
+        - "expense_year" (int)
+        - "income_pause_months" (int)
+        - "living_expense_burn" (int)
         """
         response = await model.generate_content_async(prompt)
-        return json.loads(response.text)
+        # We use .strip() to ensure no weird whitespace breaks the json.loads
+        return json.loads(response.text.strip())
         
     except Exception as e:
         print("Gemini Extraction Error:", e)
         return {
             "years_to_simulate": 5, "monthly_contribution": 500,
-            "one_time_expense": 0, "expense_year": 1, "income_pause_months": 0
+            "one_time_expense": 0, "expense_year": 1, 
+            "income_pause_months": 0, "living_expense_burn": 3500
         }
+        
 
 async def generate_prophecy_text(data):
     """Simulator Prophecy - Supportive and Strategic"""
     try:
+        params = data.get("params", {})
         model = genai.GenerativeModel('gemini-2.5-flash')
         prompt = f"""You are a brilliant, supportive Gen-Z financial strategist for an app called Wealth Wellness Hub.
         The user just ran a simulation to test a financial decision.
         
-        Data: Projected wealth after this scenario: ${data['projectedWealth']}. 
-        The scenario they simulated: "{data.get('scenario', 'Normal growth')}"
+        The user started with ${data.get('startingWealth')} and simulated this: "{data.get('scenario')}"
+    
+        The math engine used these variables:
+        - Timeframe: {params.get('years_to_simulate')} years
+        - Monthly Savings: ${params.get('monthly_contribution')}
+        - Employment Gap: {params.get('income_pause_months')} months
+        - Monthly Burn during Gap: ${params.get('living_expense_burn')}
+    
+        FINAL PROJECTED WEALTH: ${data['projectedWealth']}
         
         Rules:
         - DO NOT roast them. This is a safe space to test ideas.
-        - Give them 1 piece of actionable advice or a smart alternative/pivot based on their scenario.
+        - Give them actionable advice or a smart alternative/pivot based on their scenario.
         - Sound like a highly intelligent Gen Z bestie. Use positive slang (e.g., 'main character energy', 'level up', 'secure the bag').
         - Max 3 sentences. No bullet points.
         """

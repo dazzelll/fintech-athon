@@ -185,223 +185,165 @@ export function WealthBlob({ onBack }: any) {
 
 // ─── EVENT SIMULATOR ──────────────────────────────────────────────────────────
 export function EventSimulator({ onBack }: any) {
-  const [sel, setSel] = useState("market-crash");
-  const [amt, setAmt] = useState("50000");
+  const [scenario, setScenario] = useState("");
+  const [loading, setLoading] = useState(false);
   const [res, setRes] = useState<any>(null);
-  const current = 487500;
-  const events = [
-    { id: "market-crash", label: "Market Crash", emoji: "📉", impact: -1 },
-    { id: "job-loss", label: "Job Loss", emoji: "💼", impact: -1 },
-    {
-      id: "medical-emergency",
-      label: "Medical Emergency",
-      emoji: "🏥",
-      impact: -1,
-    },
-    { id: "major-purchase", label: "Major Purchase", emoji: "🏠", impact: -1 },
-    { id: "windfall", label: "Windfall", emoji: "💰", impact: 1 },
-    { id: "investment-gain", label: "Investment Gain", emoji: "📈", impact: 1 },
-  ];
-  const recs: any = {
-    "market-crash": "Stay diversified. Avoid panic selling.",
-    "job-loss": "Use emergency fund first. Activate frugal mode.",
-    "medical-emergency": "Use HSA if available. Negotiate bills.",
-    "major-purchase": "Reassess budget priorities.",
-    windfall: "Diversify across asset classes.",
-    "investment-gain": "Rebalance and lock in some gains.",
+  
+  // Optional: Keep live total just to show them their starting point before they type
+  const [current, setCurrent] = useState(0);
+
+  useEffect(() => {
+    async function fetchLiveTotal() {
+      try {
+        const response = await fetch("http://localhost:8000/api/portfolio/sandbox");
+        const data = await response.json();
+        setCurrent(data.total || 0);
+      } catch (error) {
+        setCurrent(487500); 
+      }
+    }
+    fetchLiveTotal();
+  }, []);
+
+  const runAiSimulation = async () => {
+    if (!scenario.trim()) return;
+    setLoading(true);
+    setRes(null);
+
+    try {
+      // Connects to the text-parsing backend we built!
+      const response = await fetch("http://localhost:8000/api/simulator/run", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ scenario }),
+      });
+      
+      const data = await response.json();
+      setRes(data);
+    } catch (error) {
+      console.error("Simulation failed", error);
+      // Fallback for demo purposes if the API crashes
+      setRes({
+        startingWealth: current,
+        projectedWealth: current * 1.05,
+        softLifeScore: 50,
+        prophecyText: "The oracle is resting. Try again later bestie.",
+        extractedParams: {}
+      });
+    } finally {
+      setLoading(false);
+    }
   };
-  const run = () => {
-    const ev = events.find((e) => e.id === sel)!;
-    const a = parseFloat(amt) || 0;
-    const nw = ev.impact < 0 ? current - a : current + a;
-    const pct = (((nw - current) / current) * 100).toFixed(1);
-    setRes({ nw, pct, rec: recs[sel], pos: ev.impact > 0 });
-  };
+
   return (
     <ScrollView contentContainerStyle={{ paddingBottom: 100, paddingTop: 30 }}>
       <BackBtn
         onBack={onBack}
-        title="Event Simulator"
-        subtitle="Model financial scenarios"
+        title="AI Simulator"
+        subtitle="Type any scenario to see your future"
       />
+
+      {/* NATURAL LANGUAGE INPUT CARD */}
       <Card style={{ marginBottom: 12 }}>
-        <Text
-          style={{
-            fontWeight: "700",
-            fontSize: 16,
-            color: C.text,
-            marginBottom: 14,
-          }}
-        >
-          Select Event
+        <Text style={{ fontWeight: "700", fontSize: 16, color: C.text, marginBottom: 8 }}>
+          What's your plan?
         </Text>
-        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-          {events.map((ev) => (
-            <TouchableOpacity
-              key={ev.id}
-              onPress={() => setSel(ev.id)}
-              activeOpacity={0.75}
-              style={{
-                backgroundColor:
-                  sel === ev.id ? `${C.accent}12` : "rgba(0,0,0,0.03)",
-                borderColor: sel === ev.id ? C.accent : C.cardBorder,
-                borderWidth: 1.5,
-                borderRadius: 12,
-                padding: 10,
-                flexDirection: "row",
-                alignItems: "center",
-                gap: 8,
-                width: "47%",
-              }}
-            >
-              <Text
-                style={{
-                  fontSize: 12,
-                  color: sel === ev.id ? C.accent : C.muted,
-                  fontWeight: sel === ev.id ? "700" : "500",
-                }}
-              >
-                {ev.emoji} {ev.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      </Card>
-      <Card style={{ marginBottom: 12 }}>
-        <Text
-          style={{
-            fontWeight: "700",
-            fontSize: 16,
-            color: C.text,
-            marginBottom: 12,
-          }}
-        >
-          Event Amount
+        <Text style={{ fontSize: 13, color: C.muted, marginBottom: 14 }}>
+          Try: "I want to buy a $40k car next year, but I'll save $600 a month for 5 years."
         </Text>
+        
         <View
           style={{
-            flexDirection: "row",
-            alignItems: "center",
-            backgroundColor: "rgba(0,0,0,0.04)",
+            backgroundColor: "rgba(0,0,0,0.02)",
             borderColor: C.cardBorder,
             borderWidth: 1,
             borderRadius: 12,
-            paddingHorizontal: 14,
+            padding: 12,
+            minHeight: 100,
           }}
         >
-          <Text style={{ color: C.muted, fontSize: 16 }}>$</Text>
           <TextInput
-            value={amt}
-            onChangeText={setAmt}
-            keyboardType="numeric"
+            value={scenario}
+            onChangeText={setScenario}
+            multiline
+            placeholder="Type your scenario here..."
+            placeholderTextColor={C.muted}
             style={{
               flex: 1,
-              padding: 12,
               color: C.text,
-              fontSize: 16,
-              fontWeight: "700",
+              fontSize: 15,
+              fontWeight: "500",
+              textAlignVertical: "top",
             }}
           />
         </View>
+
         <TouchableOpacity
-          onPress={run}
+          onPress={runAiSimulation}
+          disabled={loading || !scenario.trim()}
           style={[
             styles.primaryButton,
-            { marginTop: 14, backgroundColor: undefined },
+            { marginTop: 14, backgroundColor: undefined, opacity: (loading || !scenario.trim()) ? 0.6 : 1 },
           ]}
         >
           <View
             style={{
-              backgroundColor: "#f59e0b",
+              backgroundColor: C.accent || "#8b5cf6",
               borderRadius: 14,
               padding: 14,
               alignItems: "center",
+              flexDirection: "row",
+              justifyContent: "center",
+              gap: 8
             }}
           >
-            <Text style={styles.primaryButtonText}>Run Simulation</Text>
+            {loading && <ActivityIndicator size="small" color="#fff" />}
+            <Text style={styles.primaryButtonText}>
+              {loading ? "Consulting the Oracle..." : "Predict Future"}
+            </Text>
           </View>
         </TouchableOpacity>
       </Card>
+
+      {/* AI RESULT CARD */}
       {res && (
-        <Card
-          style={{
-            borderColor: res.pos ? "#10b98138" : "#ef444438",
-            borderWidth: 1,
-          }}
-        >
-          <Text
-            style={{
-              fontWeight: "700",
-              fontSize: 16,
-              color: C.text,
-              marginBottom: 14,
-            }}
-          >
-            Simulation Result
+        <Card style={{ borderColor: C.accent, borderWidth: 1 }}>
+          <Text style={{ fontWeight: "700", fontSize: 16, color: C.text, marginBottom: 14 }}>
+            Your Manifestation
           </Text>
-          <View style={{ flexDirection: "row", gap: 12, marginBottom: 14 }}>
-            <View
-              style={{
-                flex: 1,
-                backgroundColor: "rgba(0,0,0,0.04)",
-                borderRadius: 12,
-                padding: 14,
-              }}
-            >
-              <Text style={{ fontSize: 11, color: C.muted, marginBottom: 4 }}>
-                Current
-              </Text>
+          
+          <View style={{ flexDirection: "row", gap: 12, marginBottom: 16 }}>
+            <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.04)", borderRadius: 12, padding: 14 }}>
+              <Text style={{ fontSize: 11, color: C.muted, marginBottom: 4 }}>Current Net Worth</Text>
               <Text style={{ fontSize: 18, fontWeight: "800", color: C.text }}>
-                {fmt(current)}
+                {fmt(res.startingWealth || current)}
               </Text>
             </View>
-            <View
-              style={{
-                flex: 1,
-                backgroundColor: res.pos
-                  ? "rgba(16,185,129,0.08)"
-                  : "rgba(239,68,68,0.08)",
-                borderRadius: 12,
-                padding: 14,
-              }}
-            >
-              <Text style={{ fontSize: 11, color: C.muted, marginBottom: 4 }}>
-                After Event
-              </Text>
-              <Text
-                style={{
-                  fontSize: 18,
-                  fontWeight: "800",
-                  color: res.pos ? "#10b981" : "#ef4444",
-                }}
-              >
-                {fmt(res.nw)}
+            <View style={{ flex: 1, backgroundColor: `${C.accent}15`, borderRadius: 12, padding: 14 }}>
+              <Text style={{ fontSize: 11, color: C.muted, marginBottom: 4 }}>Projected Wealth</Text>
+              <Text style={{ fontSize: 18, fontWeight: "800", color: C.accent }}>
+                {fmt(res.projectedWealth)}
               </Text>
             </View>
           </View>
-          <Text
-            style={{
-              fontSize: 24,
-              fontWeight: "900",
-              color: pctC(parseFloat(res.pct)),
-              textAlign: "center",
-              marginBottom: 12,
-            }}
-          >
-            {parseFloat(res.pct) >= 0 ? "+" : ""}
-            {res.pct}%
-          </Text>
-          <View
-            style={{
-              backgroundColor: "rgba(0,0,0,0.04)",
-              borderRadius: 12,
-              padding: 14,
-            }}
-          >
-            <Text style={{ fontSize: 12, color: C.muted, marginBottom: 4 }}>
-              💡 Recommendation
+
+          {/* Soft Life Score */}
+          <View style={{ marginBottom: 20 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
+              <Text style={{ fontSize: 12, color: C.muted, fontWeight: '600' }}>Soft Life Readiness</Text>
+              <Text style={{ fontSize: 12, color: C.accent, fontWeight: '700' }}>{res.softLifeScore}%</Text>
+            </View>
+            <View style={{ height: 8, backgroundColor: 'rgba(0,0,0,0.05)', borderRadius: 4, overflow: 'hidden' }}>
+              <View style={{ width: `${res.softLifeScore}%`, height: '100%', backgroundColor: C.accent }} />
+            </View>
+          </View>
+
+          {/* AI Prophecy Text */}
+          <View style={{ backgroundColor: "rgba(0,0,0,0.04)", borderRadius: 12, padding: 14 }}>
+            <Text style={{ fontSize: 12, color: C.muted, marginBottom: 6 }}>✨ The Algorithm Says:</Text>
+            <Text style={{ fontSize: 14, color: C.text, lineHeight: 20, fontWeight: "500" }}>
+              {res.prophecyText}
             </Text>
-            <Text style={{ fontSize: 13, color: C.text }}>{res.rec}</Text>
           </View>
         </Card>
       )}
