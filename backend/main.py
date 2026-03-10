@@ -12,6 +12,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 import stripe
 from pathlib import Path
 from dotenv import load_dotenv
+import time
 
 # Load .env from backend/ or project root (when running as uvicorn from backend/)
 load_dotenv()
@@ -30,6 +31,8 @@ from engines import (
     extract_simulation_parameters,
     generate_villain_roast,
     build_portfolio_trajectory,
+    MOCK_HISTORY_SEED,          # ← ADD
+    HISTORY_SEEDED_STREAKS,     # ← ADD
 )
 
 # 1. Create DB Tables
@@ -175,10 +178,31 @@ async def get_portfolio(db: Session = Depends(get_db)):
 
     portfolio_obj = {"total": total, "assets": assets}
     # Pass villain_events_count=1 when sabotaged so health score reflects it
-    villain_events_count = 1 if HACKATHON_SABOTAGE_MODE else 0
-    challenges_completed = db.query(models.Challenge).filter_by(completed=True).count()
-    streak_avg = db.query(sa_func.avg(models.Streak.current_count)).scalar() or 0
-    health = calculate_health_score(portfolio_obj, villain_events_count=villain_events_count, streak_avg=streak_avg, challenges_completed=challenges_completed)         
+    villain_events_count = db.query(models.VillainArcEvent).filter(
+    models.VillainArcEvent.user_id.is_(None)
+    ).count()
+    if HACKATHON_SABOTAGE_MODE:
+        villain_events_count += 1
+    challenges_completed = (
+    db.query(models.Challenge)
+    .filter(models.Challenge.completed == True, models.Challenge.user_id.is_(None))
+    .count()
+    )
+    
+    # Seed and pull fresh streaks for consistency with trajectory/sandbox
+    _seed_streaks_from_history(db)
+    streak_rows = db.query(models.Streak).filter(models.Streak.user_id.is_(None)).all()
+    streak_avg = (
+        sum(s.current_count or 0 for s in streak_rows) / len(streak_rows)
+    ) if streak_rows else 0
+
+    health = calculate_health_score(
+        portfolio_obj,
+        villain_events_count=villain_events_count,
+        streak_avg=streak_avg,
+        challenges_completed=challenges_completed
+    )            
+
     wealth_age = calculate_wealth_age(total, 35, health["overall"])
 
     for a in assets:
@@ -189,12 +213,9 @@ async def get_portfolio(db: Session = Depends(get_db)):
         else:
             a['mood'] = 'neutral'
 
-    # Base 3‑month history (used if trajectory engine fails)
-    base_history = [
-        {"m": "Jan", "v": 465000},
-        {"m": "Feb", "v": 480000},
-        {"m": "Mar", "v": total},
-    ]
+
+    base_history = copy.deepcopy(MOCK_HISTORY_SEED)
+    base_history[-1]["v"] = total  # anchor to live total
 
     # Try to build a 6‑month past+future trajectory; fall back gracefully if anything breaks.
     try:
@@ -329,6 +350,142 @@ def _manual_asset_totals(db: Session) -> dict[str, float]:
         except (TypeError, ValueError):
             continue
     return totals
+
+
+# ---- STREAKS ENGINE ---------------------------------------------------------
+
+STREAK_CONFIG: dict[str, dict] = {
+    "daily_savings":   {"name": "Daily Savings",      "emoji": "💰", "goal": 30},
+    "investment":      {"name": "Investment Streak",  "emoji": "📈", "goal": 20},
+    "positive_pnl":    {"name": "Positive P&L",       "emoji": "💵", "goal": 30},
+    "learning":        {"name": "Learning Streak",    "emoji": "📚", "goal": 14},
+}
+
+
+def _ensure_default_streaks(db: Session) -> list[models.Streak]:
+    """
+    For hackathon/demo, we keep a single anonymous user's streaks.
+    Ensure one row per configured streak_type exists.
+    """
+    existing = {
+        s.streak_type: s
+        for s in db.query(models.Streak).filter(models.Streak.user_id.is_(None)).all()
+    }
+    for t in STREAK_CONFIG.keys():
+        if t not in existing:
+            s = models.Streak(
+                user_id=None,
+                streak_type=t,
+                current_count=0,
+                best_count=0,
+            )
+            db.add(s)
+            db.flush()
+            existing[t] = s
+    db.commit()
+    return list(existing.values())
+
+def _seed_streaks_from_history(db: Session):
+    """
+    Seed non-learning streak counts from HISTORY_SEEDED_STREAKS so they're
+    consistent with the trajectory engine's mock data.
+    Learning streak is derived from actual reflection logs instead.
+    Only seeds rows that are still at 0 (first run / after reset).
+    """
+    from datetime import date, timedelta
+
+    _ensure_default_streaks(db)
+    db.expire_all()
+    rows = db.query(models.Streak).filter(models.Streak.user_id.is_(None)).all()
+    today = date.today()
+    changed = False
+
+    for s in rows:
+        seed = HISTORY_SEEDED_STREAKS.get(s.streak_type)
+        if seed is not None and (s.current_count or 0) == 0:
+            s.current_count = seed
+            s.best_count = max(s.best_count or 0, seed)
+            # Set to yesterday so the next ping naturally increments
+            s.last_updated = today - timedelta(days=1)
+            db.add(s)
+            changed = True
+
+    if changed:
+        db.commit()
+
+@app.get("/api/streaks")
+async def get_streaks(db: Session = Depends(get_db)):
+    """
+    Return the current streaks for the demo user, with labels/emoji/goals.
+    """
+    db.expire_all()
+    _seed_streaks_from_history(db)
+    rows = db.query(models.Streak).filter(models.Streak.user_id.is_(None)).all()
+    result = []
+    for s in rows:
+        cfg = STREAK_CONFIG.get(s.streak_type, {"name": s.streak_type, "emoji": "🔥", "goal": 10})
+        result.append(
+            {
+                "id": s.id,
+                "type": s.streak_type,
+                "name": cfg["name"],
+                "emoji": cfg["emoji"],
+                "goal": cfg["goal"],
+                "current": s.current_count,
+                "best": s.best_count,
+                "lastUpdated": s.last_updated.isoformat() if s.last_updated else None,
+            }
+        )
+    return result
+
+
+class StreakPing(BaseModel):
+    streak_type: str
+
+
+@app.post("/api/streaks/ping")
+async def ping_streak(req: StreakPing, db: Session = Depends(get_db)):
+    """
+    Mark today's action for a given streak_type.
+    - If last_updated is today: keep current_count as-is (idempotent).
+    - If last_updated is yesterday: increment.
+    - Otherwise: reset to 1.
+    """
+    from datetime import date, timedelta
+
+    rows = _ensure_default_streaks(db)
+    streak_map = {s.streak_type: s for s in rows}
+    s = streak_map.get(req.streak_type)
+    if not s:
+        raise HTTPException(status_code=404, detail="Unknown streak_type")
+
+    today = date.today()
+    if s.last_updated == today:
+        # already counted today
+        pass
+    else:
+        if s.last_updated == today - timedelta(days=1):
+            s.current_count = (s.current_count or 0) + 1
+        else:
+            s.current_count = 1
+        s.best_count = max(s.best_count or 0, s.current_count)
+        s.last_updated = today
+
+    db.add(s)
+    db.commit()
+    db.refresh(s)
+
+    cfg = STREAK_CONFIG.get(s.streak_type, {"name": s.streak_type, "emoji": "🔥", "goal": 10})
+    return {
+        "id": s.id,
+        "type": s.streak_type,
+        "name": cfg["name"],
+        "emoji": cfg["emoji"],
+        "goal": cfg["goal"],
+        "current": s.current_count,
+        "best": s.best_count,
+        "lastUpdated": s.last_updated.isoformat() if s.last_updated else None,
+    }
 
 
 def _manual_asset_holdings(db: Session, limit: int = 50) -> dict[str, list[dict]]:
@@ -717,7 +874,8 @@ async def get_villain_data(req: VillainRoastRequest, db: Session = Depends(get_d
 class VillainAdvisorRequest(BaseModel):
     riskLevel: int = 5
 
-
+_villain_cache: dict = {"data": None, "ts": 0}
+_VILLAIN_TTL = 3600 
 @app.post("/api/villain/advisor")
 async def get_villain_advisor(req: VillainAdvisorRequest, db: Session = Depends(get_db)):
     """
@@ -725,13 +883,19 @@ async def get_villain_advisor(req: VillainAdvisorRequest, db: Session = Depends(
     on sabotage mode being active — it simply reads the current sandbox
     portfolio (mock + Alpaca + manual assets) and returns message + steps.
     """
+    global _villain_cache
+    if _villain_cache["data"] and (time.time() - _villain_cache["ts"]) < _VILLAIN_TTL:
+        return _villain_cache["data"]
+    
     snapshot = await get_sandbox_portfolio(db)
     assets_for_ai = snapshot.get("assets", [])
     dynamic_message, action_steps = await generate_villain_roast(assets_for_ai, req.riskLevel)
-    return {
+    result = {
         "message": dynamic_message,
         "steps": action_steps,
     }
+    _villain_cache = {"data": result, "ts": time.time()}
+    return result
 
 @app.get("/api/crypto/live-prices")
 async def get_live_crypto_prices():
@@ -949,32 +1113,33 @@ async def get_sandbox_portfolio(db: Session = Depends(get_db)):
     portfolio_obj = {"total": max(0, total-TOTAL_DEBT), "assets": assets, "gross_total":total, "debt":TOTAL_DEBT}
     
     # ── DB QUERY FOR REAL STATS ──
-    user = db.query(models.User).first()
-    villain_count = 0
-    total_streaks = 0
-    challenges_done = 0
+    # Anonymous demo user — all records have user_id=None
+    villain_count = db.query(models.VillainArcEvent).filter(
+        models.VillainArcEvent.user_id.is_(None)
+    ).count()
+    if HACKATHON_SABOTAGE_MODE:
+        villain_count += 1
 
-    if user:
-        villain_count = db.query(models.VillainArcEvent).filter(
-            models.VillainArcEvent.user_id == user.id
-        ).count()
-        
-        total_streaks = db.query(sa_func.sum(models.Streak.current_count)).filter(
-            models.Streak.user_id == user.id
-        ).scalar() or 0
-        
-        challenges_done = db.query(models.Challenge).filter(
-            models.Challenge.user_id == user.id, 
-            models.Challenge.completed == True
-        ).count()
+    challenges_done = db.query(models.Challenge).filter(
+        models.Challenge.user_id.is_(None),
+        models.Challenge.completed == True
+    ).count()
 
     # Pass the actual DB counts into the engine!
+    # Pull fresh streak data after seeding so health score is consistent
+    _seed_streaks_from_history(db)
+    streak_rows = db.query(models.Streak).filter(models.Streak.user_id.is_(None)).all()
+    streak_avg = (
+        sum(s.current_count or 0 for s in streak_rows) / len(streak_rows)
+        ) if streak_rows else 0
+
     health = calculate_health_score(
-        portfolio_obj, 
-        villain_events_count=villain_count, 
-        streak_avg=total_streaks,
-        completed_challenges=challenges_done
-    )    
+        portfolio_obj,
+        villain_events_count=villain_count,
+        streak_avg=streak_avg,
+        challenges_completed=challenges_done   # ← fixed param name to match engines.py
+    )
+    
     wealth_age = calculate_wealth_age(total, 35, health["overall"])
 
     # Ensure moods for blobs
@@ -995,14 +1160,10 @@ async def get_sandbox_portfolio(db: Session = Depends(get_db)):
     net_total = total - TOTAL_DEBT
 
     # 2. Use net_total for the mock history
-    history = sandbox.history or [
-        {"m": "Oct", "v": 445000},
-        {"m": "Nov", "v": 458000},
-        {"m": "Dec", "v": 472000},
-        {"m": "Jan", "v": 465000},
-        {"m": "Feb", "v": 480000},
-        {"m": "Mar", "v": net_total},  # ✅ Changed
-    ]
+    import copy as _copy
+    _base_history = _copy.deepcopy(MOCK_HISTORY_SEED)
+    _base_history[-1]["v"] = net_total  # anchor last point to live net worth
+    history = sandbox.history or _base_history
 
     # 3. Ensure the last history point matches net worth
     if history:
@@ -1033,10 +1194,11 @@ class ReflectionCreate(BaseModel):
 @app.post("/api/reflections")
 async def log_reflection(entry: ReflectionCreate, db: Session = Depends(get_db)):
     """Save a new reflection to the database"""
-    from datetime import date
-    
+    from datetime import date, timedelta
+    print("DEBUG reflection entry:", entry)
+    # 1. Save reflection first, commit immediately
     log = models.VillainArcEvent(
-        user_id=None, # In a real app, this would be the logged-in user's ID
+        user_id=None,
         description=entry.txName,
         amount=entry.amount,
         emotion=entry.emotion,
@@ -1044,9 +1206,54 @@ async def log_reflection(entry: ReflectionCreate, db: Session = Depends(get_db))
         event_date=date.today()
     )
     db.add(log)
-    db.commit()
-    db.refresh(log)
-    return {"status": "success"}
+    try:
+        db.commit()
+        db.refresh(log)
+        print("DEBUG reflection saved, id:", log.id)  # ← confirm save
+    except Exception as e:
+        print("DEBUG reflection save FAILED:", repr(e))  # ← catch DB error
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to save reflection: {repr(e)}")
+    
+
+    # 2. Only then handle learning streak in a separate clean operation
+    if (entry.emotion or "").strip().lower() == "learning":
+        try:
+            _ensure_default_streaks(db)
+            db.expire_all()
+            
+            s = db.query(models.Streak).filter(
+                models.Streak.streak_type == "learning",
+                models.Streak.user_id.is_(None)
+            ).first()
+            print("DEBUG streak row found:", s)
+            if s:
+                today = date.today()
+                last = s.last_updated
+                print("DEBUG today:", today, "last_updated:", last)  # ← what are the dates?
+                print("DEBUG current_count before:", s.current_count)  # ← what's the count?
+                if last == today:
+                    print("DEBUG: already counted today, skipping")
+                    pass  # already counted today
+                elif last == today - timedelta(days=1):
+                    s.current_count = (s.current_count or 0) + 1
+                    print("DEBUG: incremented to", s.current_count)
+                else:
+                    s.current_count = 1
+                    print("DEBUG: reset to 1")
+
+                s.best_count = max(s.best_count or 0, s.current_count)
+                s.last_updated = today
+                db.add(s)
+                db.commit()
+                db.refresh(s)
+                print("DEBUG streak saved, current_count:", s.current_count)  # ← confirm
+        except Exception as e:
+            print("DEBUG streak FAILED:", repr(e))
+            print("Learning streak update error:", repr(e))
+            db.rollback()
+
+    return {"status": "success", "id": log.id}
 
 @app.get("/api/reflections")
 async def get_reflections(db: Session = Depends(get_db)):
@@ -1057,7 +1264,9 @@ async def get_reflections(db: Session = Depends(get_db)):
         .limit(50)
         .all()
     )
-    
+    print("DEBUG reflections count:", len(rows))  # ← add this
+    for r in rows:
+        print("DEBUG row:", r.id, r.description, r.emotion)  # ← add this
     # Format them so the frontend can read them easily
     return [
         {

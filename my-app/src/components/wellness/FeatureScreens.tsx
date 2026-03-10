@@ -1210,101 +1210,54 @@ export function WealthAge({ onBack }: any) {
 
 // ─── STREAKS ──────────────────────────────────────────────────────────────────
 export function Streaks({ onBack }: any) {
-  const streaks = [
-    { name: "Daily Savings", current: 12, best: 45, goal: 30, emoji: "💰" },
-    { name: "Investment Streak", current: 8, best: 15, goal: 20, emoji: "📈" },
-    { name: "Positive P&L", current: 23, best: 23, goal: 30, emoji: "💵" },
-    { name: "Learning Streak", current: 0, best: 7, goal: 14, emoji: "📚" },
-  ];
+  const [streaks, setStreaks] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch(`${API_BASE_URL}/streaks`)
+      .then(r => r.json())
+      .then(data => { setStreaks(data); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, []);
+
+  if (loading) return <ActivityIndicator style={{ marginTop: 40 }} />;
+
   return (
-    <ScrollView contentContainerStyle={{ paddingBottom: 100, paddingTop:30 }}>
-      <BackBtn
-        onBack={onBack}
-        title="Streaks"
-      />
-      <View
-        style={{
-          backgroundColor: "#ea580c",
-          borderRadius: 20,
-          padding: 20,
-          marginBottom: 12,
-        }}
-      >
-        <View
-          style={{
-            flexDirection: "row",
-            alignItems: "center",
-            gap: 10,
-            marginBottom: 8,
-          }}
-        >
+    <ScrollView contentContainerStyle={{ paddingBottom: 100, paddingTop: 30 }}>
+      <BackBtn onBack={onBack} title="Streaks" />
+      <View style={{ backgroundColor: "#ea580c", borderRadius: 20, padding: 20, marginBottom: 12 }}>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 8 }}>
           <Text style={{ fontSize: 28 }}>🔥</Text>
-          <Text style={{ fontWeight: "800", fontSize: 18, color: "white" }}>
-            Total Streak Power
-          </Text>
+          <Text style={{ fontWeight: "800", fontSize: 18, color: "white" }}>Total Streak Power</Text>
         </View>
         <Text style={{ fontSize: 44, fontWeight: "900", color: "white" }}>
-          {streaks.reduce((s, st) => s + st.current, 0)}
+          {streaks.reduce((s, st) => s + (st.current || 0), 0)}
         </Text>
-        <Text style={{ fontSize: 13, color: "rgba(255,255,255,0.7)" }}>
-          Combined streak days
-        </Text>
+        <Text style={{ fontSize: 13, color: "rgba(255,255,255,0.7)" }}>Combined streak days</Text>
       </View>
       {streaks.map((s, i) => {
         const pct = Math.min(100, (s.current / s.goal) * 100);
-        const col =
-          s.current === 0
-            ? C.muted
-            : pct >= 100
-            ? "#10b981"
-            : pct >= 50
-            ? "#f59e0b"
-            : C.accent;
+        const col = s.current === 0 ? C.muted : pct >= 100 ? "#10b981" : pct >= 50 ? "#f59e0b" : C.accent;
         return (
           <Card key={i} style={{ marginBottom: 12 }}>
-            <View
-              style={{
-                flexDirection: "row",
-                justifyContent: "space-between",
-                alignItems: "center",
-                marginBottom: 12,
-              }}
-            >
-              <View
-                style={{ flexDirection: "row", gap: 10, alignItems: "center" }}
-              >
+            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+              <View style={{ flexDirection: "row", gap: 10, alignItems: "center" }}>
                 <Text style={{ fontSize: 24 }}>{s.emoji}</Text>
                 <View>
-                  <Text
-                    style={{ fontWeight: "700", fontSize: 14, color: C.text }}
-                  >
-                    {s.name}
-                  </Text>
-                  <Text style={{ fontSize: 11, color: C.muted }}>
-                    Best: {s.best} days
-                  </Text>
+                  <Text style={{ fontWeight: "700", fontSize: 14, color: C.text }}>{s.name}</Text>
+                  <Text style={{ fontSize: 11, color: C.muted }}>Best: {s.best} days</Text>
                 </View>
               </View>
               <View style={{ alignItems: "flex-end" }}>
-                <Text
-                  style={{
-                    fontSize: 26,
-                    fontWeight: "900",
-                    color: s.current === 0 ? C.muted : "#f97316",
-                  }}
-                >
+                <Text style={{ fontSize: 26, fontWeight: "900", color: s.current === 0 ? C.muted : "#f97316" }}>
                   {s.current}
                 </Text>
-                <Text style={{ fontSize: 10, color: C.muted }}>
-                  of {s.goal}
-                </Text>
+                <Text style={{ fontSize: 10, color: C.muted }}>of {s.goal}</Text>
               </View>
             </View>
             <ProgressBar value={pct} color={col} height={7} />
             {s.current === 0 && (
-              <Text style={{ fontSize: 11, color: "#ef4444", marginTop: 6 }}>
-                ⚠️ Streak broken — restart today!
-              </Text>
+              <Text style={{ fontSize: 11, color: "#ef4444", marginTop: 6 }}>⚠️ Streak broken — restart today!</Text>
             )}
           </Card>
         );
@@ -2111,7 +2064,18 @@ export function VillainArc({ onBack, riskLevel }: any) {
   };
 
   // Fetch saved reflections when the screen loads
+const fetchRefs = async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/reflections`);
+      const data = await res.json();
+      if (Array.isArray(data)) setRefs(data);
+    } catch (e) {
+      console.error("Reflections fetch error:", e);
+    }
+  };
+
   useEffect(() => {
+    fetchRefs();
     fetchVillainAlerts(riskLevel);
     fetchAdvisor(riskLevel);
   }, [riskLevel]);
@@ -2315,17 +2279,6 @@ export function VillainArc({ onBack, riskLevel }: any) {
             const amountNum = parseFloat(txAmount) || 0;
 
             // 2. Instantly show it on screen
-            const newRef = {
-              id: Date.now().toString(),
-              date: "Today",
-              tx: txName,
-              amount: amountNum,
-              emotion: emotion,
-              notes: note
-            };
-            setRefs([newRef, ...refs]);
-
-            // 3. Send it to your Python backend
             try {
               await fetch(`${API_BASE_URL}/reflections`, {
                 method: "POST",
@@ -2337,6 +2290,7 @@ export function VillainArc({ onBack, riskLevel }: any) {
                   notes: note
                 })
               });
+              await fetchRefs();  // reload from API so list is accurate
             } catch (err) {
               console.error("Failed to save reflection:", err);
             }

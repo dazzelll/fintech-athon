@@ -135,6 +135,16 @@ export function Dashboard({ onNavigate, mode, useDemoAccount }: any) {
 
   useEffect(() => {
     fetchPortfolio();
+    fetch(`${API_BASE_URL}/streaks`)
+      .then(r => r.json())
+      .then(data => {
+        if (Array.isArray(data)) {
+          setTotalStreakPower(data.reduce((sum, s) => sum + (s.current || 0), 0));
+        }
+      })
+      .catch(() => {});
+    // Only fetch villain data if already connected
+    if (isConnected) fetchVillainData(5);
   }, [useDemoAccount]);
 
   const handleConnectBank = () => {
@@ -181,6 +191,8 @@ export function Dashboard({ onNavigate, mode, useDemoAccount }: any) {
     ["Liquidity", health?.liquidity ?? 65, "#10b981"],
     ["Behavioral Resilience", health?.behavioral_resilience ?? 82, "#8b5cf6"],
   ];
+
+  const [totalStreakPower, setTotalStreakPower] = useState<number | null>(null);
 
   return (
     <ScrollView
@@ -483,7 +495,7 @@ export function Dashboard({ onNavigate, mode, useDemoAccount }: any) {
       {/* Mini Stats */}
       <View style={{ flexDirection: "row", gap: 10, marginBottom: 12 }}>
         {[
-          { id: "streaks", label: "Streaks", value: "12 🔥", sub: "Days saving" },
+          { id: "streaks", label: "Streaks", value: totalStreakPower !== null ? `${totalStreakPower} 🔥` : "... 🔥", sub: "Habits & wins" },
         ].map((item) => (
           <TouchableOpacity
             key={item.id}

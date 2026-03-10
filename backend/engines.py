@@ -16,8 +16,28 @@ genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 FRED_API_KEY = os.getenv("FRED_API_KEY")
 URA_ACCESS_KEY = os.getenv("URA_ACCESS_KEY")
 
+# Canonical 6-month mock history used as the consistent baseline across the app.
+# Streaks, trajectory, and health score all reference this so data stays in sync.
+MOCK_HISTORY_SEED = [
+    {"m": "Oct", "v": 445000},
+    {"m": "Nov", "v": 458000},
+    {"m": "Dec", "v": 472000},
+    {"m": "Jan", "v": 465000},
+    {"m": "Feb", "v": 480000},
+    {"m": "Mar", "v": 487500}
+]
+
+# Streak counts derived from the same 6-month window above.
+# These are the "ground truth" starting values for non-learning streaks.
+HISTORY_SEEDED_STREAKS = {
+    "daily_savings": 30,   # saved every day for 30-day streak (at goal)
+    "investment":    20,   # invested every weekday → ~20 streak (at goal)
+    "positive_pnl":  28,   # portfolio was up 28 of the last 30 days
+    # "learning" is excluded — driven by real reflection logs only
+}
+
 # --- SCORING ENGINE ---
-def calculate_health_score(portfolio, villain_events_count=0, streak_avg=0, completed_challenges=0): # Added completed_challenges
+def calculate_health_score(portfolio, villain_events_count=0, streak_avg=0, challenges_completed=0): # Added completed_challenges
     assets = portfolio.get('assets', [])
     total = portfolio.get('total', 0)
     if total == 0: return {"overall": 0, "diversification": 0, "liquidity": 0, "behavioral_resilience": 0}
@@ -59,7 +79,7 @@ def calculate_health_score(portfolio, villain_events_count=0, streak_avg=0, comp
 # ── UPDATED: Meaningful Behavioral Resilience ──
     villain_penalty = min(50, villain_events_count * 10) 
     streak_bonus = min(25, (streak_avg or 0) * 2)        
-    challenge_bonus = min(25, completed_challenges * 5)  
+    challenge_bonus = min(25, challenges_completed * 5)  
 
     resilience = max(0, min(100, 50 + streak_bonus + challenge_bonus - villain_penalty))
 
@@ -183,7 +203,7 @@ async def generate_villain_roast(assets_data, risk_level: int):
 Here is the user's current portfolio data: {assets_data}
 Their chosen risk tolerance is {risk_level} out of 10 (1 = extremely safe, 10 = highly aggressive).
 
-The portfolio has two critical problems: savings are dangerously low and crypto is overweight.
+Provide professional financial advise.
 
 Return ONLY a JSON object with exactly these two keys:
 
@@ -198,7 +218,7 @@ Sound like an intelligent Gen Z financial advisor. Max 4 sentences. No vague adv
         response = model.generate_content(prompt)
         result = json.loads(response.text)
         message = result.get("message", "your portfolio needs urgent attention bestie.")
-        steps = result.get("steps", "Start by rebalancing — move funds from crypto into savings to hit at least 15% liquidity.")
+        steps = result.get("steps")
         return message, steps
         
     except Exception as e:
@@ -419,12 +439,28 @@ def _base_returns_by_class(macro: dict) -> dict:
         "OTHER": 0.005,
     }
 
-
 async def _compute_shock_biases(macro: dict) -> dict:
     """
+    Returns static neutral biases to preserve Gemini quota.
+    Real Gemini logic is preserved below but disabled for demo.
+    """
+    return {"CRYPTO": 0.01, "STOCK": 0.005, "BOND": 0.002, "REALESTATE": 0.003, "SAVINGS": 0.001}
+
+_shock_cache: dict = {}
+_SHOCK_TTL = 3600
+
+async def _compute_shock_biases_gemini(macro: dict) -> dict:
+    """
+    Full Gemini-powered shock bias computation. Swap this in for _compute_shock_biases
+    when Gemini quota is not a concern.
     Use Gemini as a context engine to tilt each asset class slightly based on current macro picture.
     Returns a dict of monthly bias adjustments per class in [-0.05, +0.05].
     """
+    cache_key = round(macro.get("fed_funds", 0), 1)
+    cached = _shock_cache.get(cache_key)
+    if cached and (time.time() - cached["ts"]) < _SHOCK_TTL:
+        return cached["data"]
+
     try:
         model = genai.GenerativeModel(
             "gemini-2.5-flash",
@@ -445,11 +481,9 @@ Return ONLY a JSON object with exactly these keys, each a number in the range -0
 """
         response = await model.generate_content_async(prompt)
         raw = response.text or "{}"
-        
-        # Fix 3: Clean Markdown blocks to prevent json.loads() from crashing
         raw = raw.replace("```json", "").replace("```", "").strip()
         parsed = json.loads(raw)
-        
+
     except Exception as e:
         print("Shock bias Gemini error:", repr(e))
         return {"CRYPTO": 0.0, "STOCK": 0.0, "BOND": 0.0, "REALESTATE": 0.0, "SAVINGS": 0.0}
@@ -461,6 +495,8 @@ Return ONLY a JSON object with exactly these keys, each a number in the range -0
         except (TypeError, ValueError):
             v = 0.0
         biases[k] = max(-0.05, min(0.05, v))
+
+    _shock_cache[cache_key] = {"data": biases, "ts": time.time()}
     return biases
 
 
@@ -473,8 +509,23 @@ def _aggregate_portfolio_weights(assets: list[dict]) -> dict:
         weights[cls] = weights.get(cls, 0.0) + w
     return weights
 
+import time
+import random
+
+_trajectory_cache: dict = {}
+_CACHE_TTL = 3600
 
 async def build_portfolio_trajectory(portfolio: dict) -> dict:
+    cache_key = round(portfolio.get("total", 0), -3)
+    cached = _trajectory_cache.get(cache_key)
+    if cached and (time.time() - cached["ts"]) < _CACHE_TTL:
+        return cached["data"]
+    
+    result = await _build_trajectory_uncached(portfolio)
+    _trajectory_cache[cache_key] = {"data": result, "ts": time.time()}
+    return result
+
+async def _build_trajectory_uncached(portfolio: dict) -> dict:
     """
     Core ensemble, category-aware engine.
     - Reads the current portfolio snapshot (total + assets + optional history, health)
@@ -482,7 +533,6 @@ async def build_portfolio_trajectory(portfolio: dict) -> dict:
     - Uses Gemini to compute "shock" biases
     - Builds a 6-month forward trajectory at portfolio level
     """
-    import random # Imported here for easy drop-in
     
     total = float(portfolio.get("total", 0.0) or 0.0)
     assets = portfolio.get("assets") or []
@@ -501,13 +551,8 @@ async def build_portfolio_trajectory(portfolio: dict) -> dict:
             past.append({"m": m, "v": v, "isFuture": False})
 
     if not past:
-        # Synthetic: gentle growth towards current total over last 6 months
-        base = max(total * 0.9, total - 50000)
-        step = (total - base) / 5 if total > base else 0.0
-        months = ["Oct", "Nov", "Dec", "Jan", "Feb", "Mar"]
-        for i in range(6):
-            v = base + step * i
-            past.append({"m": months[i], "v": round(v, 2), "isFuture": False})
+        for p in MOCK_HISTORY_SEED:
+            past.append({"m": p["m"], "v": p["v"], "isFuture": False})
 
     # Ensure last point equals current total for a crisp "now"
     if total > 0 and past:
