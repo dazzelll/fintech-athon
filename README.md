@@ -3,7 +3,7 @@
 ### Project Description:
 Investors, especially Gen Z, today struggle with three compounding problems: fragmented assets scattered across accounts and wallets, no standardised way to measure true financial health, and tools that only show the past rather than guiding the future.\
 <br>
-Stack'd is an integrated Wealth Wellness Hub that tackles all three head-on. The Wealth Wallet unifies all assets alongside liabilities into a single consolidated view, giving users a fully honest and real-time picture of their net worth. Every connected asset feeds directly into the Health Score Engine, which computes a dynamic, quantifiable financial wellness rating across Diversification, Liquidity, and Behavioral Resilience.\
+Stack'd is an integrated **Wealth Wellness Hub** that tackles all three head-on. The Wealth Wallet unifies all assets alongside liabilities into a single consolidated view, giving users a fully honest and real-time picture of their net worth. Every connected asset feeds directly into the Health Score Engine, which computes a dynamic, quantifiable financial wellness rating across Diversification, Liquidity, and Behavioral Resilience.\
 <br>
 Where existing tools stop at reporting, Stack'd drives action. The Trajectory Engine projects future wealth using live macroeconomic data, while the What-If Simulator lets users stress-test real-life scenarios before committing or to better prepare. When risk is detected, the Villain Arc Advisor delivers immediate, personalised, and data-driven corrective steps.\
 <br>
