@@ -128,10 +128,10 @@ async def create_stripe_checkout():
                 'price_data': {
                     'currency': 'sgd',
                     'product_data': {
-                        'name': 'Wealth Wellness Portfolio Top-Up',
-                        'description': 'Instantly fund your Savings account.',
+                        'name': 'Wealth Wellness Top-Up',
+                        'description': 'Add funds to your investment portfolio',
                     },
-                    'unit_amount': 50000,
+                    'unit_amount': 10000,  # $100 SGD in cents
                 },
                 'quantity': 1,
             }],
@@ -141,7 +141,6 @@ async def create_stripe_checkout():
         )
         return {"success": True, "url": session.url}
     except Exception as e:
-        print("Stripe Error:", e)
         return {"success": False, "error": str(e)}
 
 

@@ -154,7 +154,7 @@ function ConnectionScreen({ onDone, onUseDemo }: { onDone: () => void; onUseDemo
       </TouchableOpacity>
 
       {/* Error Message */}
-      {message && status === "error" ? (
+      {message && connectionStatus === "error" ? (
         <Text style={{ marginTop: 24, fontSize: 13, color: "#ef4444", textAlign: "center", fontWeight: "600" }}>
           {message}
         </Text>

@@ -16,6 +16,9 @@ import { AssetDetailSheet } from "./AssetDetailSheet";
 import { Gift, Zap, Bitcoin, PiggyBank, Home, ChartLine, ScrollText, TrendingUp, BanknoteArrowDown, Building } from "lucide-react-native";
 import { API_BASE_URL } from "../../lib/api";
 
+// Global state for Stripe connection persistence
+let globalStripeConnected = false;
+
 // 🟢 1. CACHE VARIABLE OUTSIDE THE COMPONENT
 let globalPortfolioCache: any = null;
 
@@ -33,14 +36,7 @@ export function Dashboard({ onNavigate, mode, useDemoAccount }: any) {
   const [isConnectingBank, setIsConnectingBank] = useState(false);
   const [isConnectingStripe, setIsConnectingStripe] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
-  const [isStripeConnected, setIsStripeConnected] = useState(() => {
-    try {
-      const saved = localStorage.getItem('stripeConnected');
-      return saved === 'true';
-    } catch {
-      return false;
-    }
-  });
+  const [isStripeConnected, setIsStripeConnected] = useState(globalStripeConnected);
 
   const [villainAlert, setVillainAlert] = useState<any>(null);
 
@@ -207,20 +203,15 @@ export function Dashboard({ onNavigate, mode, useDemoAccount }: any) {
   const handleTopUp = async () => {
     setIsConnectingStripe(true);
     try {
-      // Just simulate connection to Stripe API without opening payment page
+      // Simulate connection to Stripe API without opening payment page
       console.log("💳 Connecting to Stripe API...");
       
       // Simulate API call delay
       await new Promise(resolve => setTimeout(resolve, 2000));
       
-      // Set connection state
+      // Update global state for persistence
+      globalStripeConnected = true;
       setIsStripeConnected(true);
-      // Save to localStorage for persistence
-      try {
-        localStorage.setItem('stripeConnected', 'true');
-      } catch (e) {
-        console.log('Could not save to localStorage');
-      }
       
       fetchPortfolio();
       setVillainAlert(null); 
