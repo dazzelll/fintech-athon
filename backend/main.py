@@ -937,18 +937,22 @@ async def simulator_run(req: SimulatorRequest, db: Session = Depends(get_db)):
     # 4. THE VIBE CHECK (Fixing the "growth doesn't make sense" logic)
     scenario_text = req.scenario.lower()
     
-    # If the scenario is bad, we reduce the return rate to 2% (Recession/Stress mode)
+    # If the scenario is bad, we reduce the return rate to negative (Recession/Stress mode)
     if any(word in scenario_text for word in ["fired", "lost", "jobless", "crash", "emergency"]):
-        annual_return_rate = 0.02 
+        annual_return_rate = -0.15  # -15% return during job loss/recession
+        # Extend the negative impact period for 3 years after job loss
+        negative_growth_years = min(3, years) 
     else:
         annual_return_rate = 0.08  # Normal "Main Character" growth
+        negative_growth_years = 0
 
     # 5. THE CALCULATION LOOP
     # Now 'years' is guaranteed to have a value!
     projected = current_net_worth
     for y in range(1, years + 1):
-        # Apply market growth
-        projected *= (1 + annual_return_rate)
+        # Apply market growth (use negative rate for first few years in job loss scenario)
+        current_return = annual_return_rate if y <= negative_growth_years else (0.01 if y <= 4 else 0.03)
+        projected *= (1 + current_return)
         
         months_saving = 12
         months_burning = 0

@@ -156,7 +156,11 @@ async def extract_simulation_parameters(scenario_text: str):
 
         # Monthly contribution / savings: "$500/mo", "save 1000 a month"
         contrib_match = re.search(r'\$?([\d,]+)\s*(?:/mo|per month|a month|monthly)', text)
-        monthly_contribution = int(contrib_match.group(1).replace(",", "")) if contrib_match else 500
+        monthly_contribution = int(contrib_match.group(1).replace(",", "")) if contrib_match else 0
+        
+        # If job loss is detected, set monthly contribution to 0
+        if any(word in text for word in ["lose", "lost", "fired", "jobless"]):
+            monthly_contribution = 0
 
         # One-time expense: "buy a $30,000 car", "spend $5000 on"
         expense_match = re.search(r'(?:buy|spend|purchase|cost)[^\$]*\$?([\d,]+)', text)
@@ -165,10 +169,25 @@ async def extract_simulation_parameters(scenario_text: str):
         # Income pause: "lose my job for 6 months", "3 month gap"
         pause_match = re.search(r'(\d+)\s*month', text)
         income_pause_months = int(pause_match.group(1)) if pause_match else 0
+        
+        # If job loss is detected but no duration specified, assume 6 months
+        if any(word in text for word in ["lose", "lost", "fired", "jobless"]) and income_pause_months == 0:
+            income_pause_months = 6
 
-        # Salary / burn: "earning $8000", "salary of $5,000"
+        # Salary / burn: "earning $8000", "salary of $5,000", "60k a year"
         salary_match = re.search(r'(?:earn|salary|mak|pay)[^\$]*\$?([\d,]+)', text)
-        living_expense_burn = int(int(salary_match.group(1).replace(",", "")) * 0.5) if salary_match else 3500
+        annual_salary_match = re.search(r'([\d,]+)\s*k.*year', text)
+        
+        if annual_salary_match:
+            # Handle annual salary (e.g., "60k a year")
+            annual_salary = int(float(annual_salary_match.group(1).replace(",", "")) * 1000)
+            living_expense_burn = int(annual_salary / 12 * 0.4)  # 40% of monthly salary
+        elif salary_match:
+            # Handle monthly salary
+            monthly_salary = int(salary_match.group(1).replace(",", ""))
+            living_expense_burn = int(monthly_salary * 0.5)
+        else:
+            living_expense_burn = 3500
 
         return {
             "years_to_simulate": years,
