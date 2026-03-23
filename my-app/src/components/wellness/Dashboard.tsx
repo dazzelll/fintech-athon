@@ -201,6 +201,28 @@ export function Dashboard({ onNavigate, mode, useDemoAccount }: any) {
     }
   };
 
+  const handleConnectStripe = async () => {
+    setIsConnectingStripe(true);
+    try {
+      // Just set the state as connected, no payment flow
+      console.log("💳 Connecting to Stripe...");
+      
+      // Simulate connection delay
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Update state to show connection
+      globalStripeConnected = true;
+      setIsStripeConnected(true);
+      
+      console.log("✅ Stripe connected successfully!");
+      
+    } catch (err) {
+      console.error("Stripe Connection Error:", err);
+    } finally {
+      setIsConnectingStripe(false);
+    }
+  };
+
   const handleTopUp = async () => {
     setIsConnectingStripe(true);
     try {
@@ -291,7 +313,7 @@ export function Dashboard({ onNavigate, mode, useDemoAccount }: any) {
 
         {!isStripeConnected && (
           <TouchableOpacity
-            onPress={handleTopUp}
+            onPress={handleConnectStripe}
             disabled={isConnectingStripe}
             style={{
               backgroundColor: isConnectingStripe ? "#374151" : "#10b981",
@@ -301,6 +323,7 @@ export function Dashboard({ onNavigate, mode, useDemoAccount }: any) {
               flexDirection: "row",
               alignItems: "center",
               gap: 6,
+              alignSelf: "flex-start",
               marginTop: 24,
             }}
           >

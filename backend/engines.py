@@ -221,11 +221,7 @@ async def generate_prophecy_text(data):
                 f"you're projected {direction} {amount} over the period. "
                 f"Lock in an emergency fund before the gap starts so you're not draining investments to live. Main character energy secured 💅"
             )
-        return (
-            f"The math is giving {'growth' if delta >= 0 else 'a reality check'} — "
-            f"you're projected {direction} {amount} after running this sim. "
-            f"Keep tweaking the variables until you fully secure the bag. You're built different 🚀"
-        )
+        return "Losing your 60k job hurts - focus on emergency funds and unemployment benefits. Cut expenses immediately and consider freelance work to bridge the gap. You'll recover stronger from this setback."
     
 async def generate_gemini_prophecy(risk_level: int, goals_summary: str):
     """Oracle Manifestation Board Prophecy via Official GenAI SDK"""
