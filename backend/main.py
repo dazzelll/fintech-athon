@@ -426,6 +426,18 @@ async def log_manual_asset(entry: ManualAssetCreate, db: Session = Depends(get_d
     }
 
 
+@app.delete("/api/manual-assets/logs/{asset_id}")
+async def delete_manual_asset(asset_id: str, db: Session = Depends(get_db)):
+    """Delete a specific manual asset entry"""
+    asset = db.query(models.ManualAssetLog).filter(models.ManualAssetLog.id == asset_id).first()
+    if not asset:
+        raise HTTPException(status_code=404, detail="Asset not found")
+    
+    db.delete(asset)
+    db.commit()
+    return {"success": True, "message": "Asset deleted successfully"}
+
+
 @app.get("/api/manual-assets/logs")
 async def list_manual_assets(db: Session = Depends(get_db)):
     """
